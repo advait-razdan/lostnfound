@@ -11,16 +11,13 @@ logger = logging.getLogger(__name__)
 
 def analyze_item_images(files: Iterable) -> Mapping[str, str]:
     """
-    Call OpenAI's vision-capable chat model to suggest a title and description
+    Call Google Gemini Vision API to suggest a title and description
     for a lost-and-found item based on one uploaded image.
-
-    We send the first image as a base64-encoded data URL and ask for strict JSON:
-
-        {"title": "...", "description": "..."}
     """
-    api_key = getattr(settings, "OPENAI_API_KEY", "")
+    # Use Google Gemini API key
+    api_key = getattr(settings, "GOOGLE_API_KEY", "")
     if not api_key:
-        logger.warning("OPENAI_API_KEY is not set; skipping vision analysis.")
+        logger.warning("GOOGLE_API_KEY is not set; skipping vision analysis.")
         return {}
 
     files = list(files or [])
@@ -39,69 +36,166 @@ def analyze_item_images(files: Iterable) -> Mapping[str, str]:
         logger.exception("Failed to read image file for vision analysis")
         return {}
 
-    # Encode as base64 for data URL
+    # Encode as base64 for Gemini API
     image_b64 = base64.b64encode(image_bytes).decode("utf-8")
     content_type = getattr(image_file, "content_type", "image/jpeg") or "image/jpeg"
-    data_url = f"data:{content_type};base64,{image_b64}"
 
-    endpoint = "https://api.openai.com/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
+    # Gemini API endpoint
+    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
 
-    system_prompt = (
+    prompt = (
         "You are helping catalog lost-and-found items for a reception desk. "
-        "Given an image of an item, respond with STRICT JSON only, with this shape:\n"
+        "Given an image of an item, respond with JSON only, with this exact shape:\n"
         '{ "title": "short, specific title", '
         '"description": "detailed description with brand, color, size, model, visible markings" }.\n'
-        "Do not include any explanation outside the JSON."
+        "Do not include any explanation or text outside the JSON. Return only valid JSON."
     )
 
     body = {
-        # You can change this to another vision-capable model available to your account
-        "model": "gpt-4.1-mini",
-        "messages": [
-            {"role": "system", "content": system_prompt},
+        "contents": [
             {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": "Analyze this lost-and-found item."},
+                "parts": [
+                    {"text": prompt},
                     {
-                        "type": "image_url",
-                        "image_url": {"url": data_url},
+                        "inline_data": {
+                            "mime_type": content_type,
+                            "data": image_b64,
+                        }
                     },
-                ],
-            },
+                ]
+            }
         ],
-        "temperature": 0.4,
+        "generationConfig": {
+            "temperature": 0.4,
+            "response_mime_type": "application/json",
+        },
     }
 
     try:
-        resp = requests.post(endpoint, headers=headers, json=body, timeout=30)
-        resp.raise_for_status()
-        data = resp.json()
-
-        # Extract the model's reply (expected to be JSON text)
-        content = data["choices"][0]["message"]["content"]
-        if isinstance(content, list):
-            content_text = "".join(
-                part.get("text", "") for part in content if isinstance(part, dict)
+        resp = requests.post(endpoint, json=body, timeout=30)
+        if resp.status_code != 200:
+            logger.error(
+                "Gemini Vision API HTTP error %s: %s",
+                resp.status_code,
+                resp.text[:500],
             )
-        else:
-            content_text = content
+            return {}
 
+        data = resp.json()
+        # Gemini returns content in candidates[0].content.parts[0].text
+        content_text = data["candidates"][0]["content"]["parts"][0]["text"]
         parsed = json.loads(content_text)
     except Exception:
-        logger.exception("Vision API call failed or returned invalid JSON")
+        logger.exception("Gemini Vision API call failed or returned invalid JSON")
         return {}
 
     title = (parsed.get("title") or "").strip()
     description = (parsed.get("description") or "").strip()
+
+    if not title and not description:
+        logger.warning("Gemini Vision API returned empty title/description: %s", parsed)
+
     return {
         "title": title,
         "description": description,
     }
+
+
+# ============================================================================
+# OPENAI IMPLEMENTATION (COMMENTED OUT - FOR REFERENCE)
+# ============================================================================
+# def analyze_item_images_openai(files: Iterable) -> Mapping[str, str]:
+#     """
+#     Call OpenAI's vision-capable chat model to suggest a title and description
+#     for a lost-and-found item based on one uploaded image.
+#     """
+#     api_key = getattr(settings, "OPENAI_API_KEY", "")
+#     if not api_key:
+#         logger.warning("OPENAI_API_KEY is not set; skipping vision analysis.")
+#         return {}
+#
+#     files = list(files or [])
+#     if not files:
+#         return {}
+#
+#     # Use only the first image for now
+#     image_file = files[0]
+#
+#     try:
+#         # Read file bytes
+#         image_file.seek(0)
+#         image_bytes = image_file.read()
+#         image_file.seek(0)
+#     except Exception:
+#         logger.exception("Failed to read image file for vision analysis")
+#         return {}
+#
+#     # Encode as base64 for data URL
+#     image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+#     content_type = getattr(image_file, "content_type", "image/jpeg") or "image/jpeg"
+#     data_url = f"data:{content_type};base64,{image_b64}"
+#
+#     endpoint = "https://api.openai.com/v1/chat/completions"
+#     headers = {
+#         "Authorization": f"Bearer {api_key}",
+#         "Content-Type": "application/json",
+#     }
+#
+#     system_prompt = (
+#         "You are helping catalog lost-and-found items for a reception desk. "
+#         "Given an image of an item, respond with JSON only, with this shape:\n"
+#         '{ "title": "short, specific title", '
+#         '"description": "detailed description with brand, color, size, model, visible markings" }.\n'
+#         "Do not include anything outside the JSON."
+#     )
+#
+#     body = {
+#         "model": "gpt-4.1-mini",  # vision-capable model
+#         "messages": [
+#             {"role": "system", "content": system_prompt},
+#             {
+#                 "role": "user",
+#                 "content": [
+#                     {"type": "text", "text": "Analyze this lost-and-found item."},
+#                     {
+#                         "type": "image_url",
+#                         "image_url": {"url": data_url},
+#                     },
+#                 ],
+#             },
+#         ],
+#         # Force the model to return a JSON object
+#         "response_format": {"type": "json_object"},
+#         "temperature": 0.4,
+#     }
+#
+#     try:
+#         resp = requests.post(endpoint, headers=headers, json=body, timeout=30)
+#         if resp.status_code != 200:
+#             logger.error(
+#                 "Vision API HTTP error %s: %s",
+#                 resp.status_code,
+#                 resp.text[:500],
+#             )
+#             return {}
+#
+#         data = resp.json()
+#         content_text = data["choices"][0]["message"]["content"]
+#         parsed = json.loads(content_text)
+#     except Exception:
+#         logger.exception("Vision API call failed or returned invalid JSON")
+#         return {}
+#
+#     title = (parsed.get("title") or "").strip()
+#     description = (parsed.get("description") or "").strip()
+#
+#     if not title and not description:
+#         logger.warning("Vision API returned empty title/description: %s", parsed)
+#
+#     return {
+#         "title": title,
+#         "description": description,
+#     }
 
 
 

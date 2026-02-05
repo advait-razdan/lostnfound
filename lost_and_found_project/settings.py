@@ -91,7 +91,11 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+# Google Gemini API Key (currently in use)
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
+
+# OpenAI API Key (commented out - kept for reference if switching back)
+# OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
 # Authentication
 LOGIN_URL = "login"
