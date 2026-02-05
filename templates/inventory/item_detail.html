@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="mb-3">{{ item.title }}</h1>
+
+<p class="text-muted">
+    Found at {{ item.location_found|default:"Unknown location" }}
+    on {{ item.date_found }}.
+</p>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        {% if item.images.all %}
+            <div id="itemImages" class="carousel slide" data-bs-ride="carousel">
+                <div class="carousel-inner">
+                    {% for image in item.images.all %}
+                        <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                            <img src="{{ image.image.url }}" class="d-block w-100" alt="{{ item.title }}">
+                        </div>
+                    {% endfor %}
+                </div>
+                {% if item.images.count > 1 %}
+                    <button class="carousel-control-prev" type="button" data-bs-target="#itemImages" data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Previous</span>
+                    </button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#itemImages" data-bs-slide="next">
+                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Next</span>
+                    </button>
+                {% endif %}
+            </div>
+        {% else %}
+            <p class="text-muted">No images available for this item.</p>
+        {% endif %}
+    </div>
+    <div class="col-md-6">
+        <h5>Description</h5>
+        <p>{{ item.description|linebreaks }}</p>
+    </div>
+</div>
+
+<a href="{% url 'inventory:item_list' %}" class="btn btn-secondary">Back to search results</a>
+{% endblock %}
+
+
+

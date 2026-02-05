@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="mb-4">Lost &amp; Found Items</h1>
+
+<form method="get" class="row g-3 mb-4">
+    <div class="col-md-4">
+        <label class="form-label">Search</label>
+        <input type="text" name="q" class="form-control" value="{{ request.GET.q }}" placeholder="Title or description">
+    </div>
+    <div class="col-md-3">
+        <label class="form-label">Location</label>
+        <input type="text" name="location" class="form-control" value="{{ request.GET.location }}" placeholder="Where it was found">
+    </div>
+    <div class="col-md-2">
+        <label class="form-label">Date from</label>
+        <input type="date" name="date_from" class="form-control" value="{{ request.GET.date_from }}">
+    </div>
+    <div class="col-md-2">
+        <label class="form-label">Date to</label>
+        <input type="date" name="date_to" class="form-control" value="{{ request.GET.date_to }}">
+    </div>
+    <div class="col-md-1 d-flex align-items-end">
+        <button type="submit" class="btn btn-primary w-100">Filter</button>
+    </div>
+</form>
+
+{% if items %}
+    <div class="row row-cols-1 row-cols-md-2 g-4">
+        {% for item in items %}
+            <div class="col">
+                <div class="card h-100">
+                    {% with first_image=item.images.first %}
+                        {% if first_image %}
+                            <img src="{{ first_image.image.url }}" class="card-img-top" alt="{{ item.title }}">
+                        {% endif %}
+                    {% endwith %}
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <a href="{% url 'inventory:item_detail' item.pk %}">{{ item.title }}</a>
+                        </h5>
+                        <p class="card-text text-muted mb-1">
+                            Found at {{ item.location_found|default:"Unknown location" }}
+                            on {{ item.date_found }}
+                        </p>
+                        <p class="card-text">
+                            {{ item.description|truncatewords:25 }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    {% if is_paginated %}
+        <nav class="mt-4" aria-label="Page navigation">
+            <ul class="pagination">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode|cut:'page='|cut:'page=' }}" aria-label="Previous">
+                            &laquo;
+                        </a>
+                    </li>
+                {% endif %}
+
+                <li class="page-item disabled">
+                    <span class="page-link">
+                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                    </span>
+                </li>
+
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode|cut:'page='|cut:'page=' }}" aria-label="Next">
+                            &raquo;
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+{% else %}
+    <p class="text-muted">No items found matching your criteria.</p>
+{% endif %}
+{% endblock %}
+
+
+

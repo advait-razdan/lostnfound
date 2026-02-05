@@ -1,0 +1,474 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="mb-4">Upload Lost &amp; Found Item</h1>
+
+{% if item_form.errors or formset.errors or formset.non_form_errors %}
+    <div class="alert alert-danger mb-4">
+        <h5>Please correct the following errors:</h5>
+        <ul class="mb-0">
+            {% if item_form.non_field_errors %}
+                {% for error in item_form.non_field_errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            {% endif %}
+            {% if formset.non_form_errors %}
+                {% for error in formset.non_form_errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            {% endif %}
+            {% for field in item_form %}
+                {% if field.errors %}
+                    <li><strong>{{ field.label }}:</strong> {{ field.errors|join:", " }}</li>
+                {% endif %}
+            {% endfor %}
+            {% for form in formset %}
+                {% if form.errors %}
+                    {% for field in form %}
+                        {% if field.errors %}
+                            <li><strong>Image {{ forloop.parentloop.counter }} - {{ field.label }}:</strong> {{ field.errors|join:", " }}</li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if form.non_field_errors %}
+                        <li><strong>Image {{ forloop.counter }}:</strong> {{ form.non_field_errors|join:", " }}</li>
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+        </ul>
+    </div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="card p-4" id="upload-form">
+    {% csrf_token %}
+
+    <h5 class="mb-3">Images <small class="text-muted">(Optional)</small></h5>
+    <div id="image-fields-container">
+        {{ formset.management_form }}
+        {% for form in formset %}
+            <div class="mb-3 image-field-wrapper" data-field-index="{{ forloop.counter0 }}">
+                <label for="{{ form.image.id_for_label }}">Image {{ forloop.counter }}</label>
+                <div class="d-flex align-items-center gap-2">
+                    {{ form.image }}
+                    <button type="button" class="btn btn-sm btn-danger remove-image-btn" style="display: none;">Remove</button>
+                </div>
+                {% if form.image.errors %}
+                    <div class="text-danger small">{{ form.image.errors }}</div>
+                {% endif %}
+                <small class="text-muted">Supported: JPEG, PNG, GIF, WebP, HEIC</small>
+                <div class="image-preview mt-2" style="display: none;">
+                    <img src="" alt="Preview" class="img-thumbnail" style="max-width: 200px; max-height: 200px; width: auto; height: auto; display: block; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    <button type="button" class="btn btn-secondary btn-sm mb-4" id="add-image-btn" style="display: none;">
+        + Add Another Image
+    </button>
+
+    <h5 class="mt-4 mb-3">Item details</h5>
+    <div class="mb-3">
+        <label for="{{ item_form.title.id_for_label }}">Title *</label>
+        {{ item_form.title }}
+        {% if item_form.title.errors %}
+            <div class="text-danger small">{{ item_form.title.errors }}</div>
+        {% endif %}
+        <small class="text-muted d-block" id="ai-status-title"></small>
+    </div>
+    <div class="mb-3">
+        <label for="{{ item_form.description.id_for_label }}">Description</label>
+        {{ item_form.description }}
+        {% if item_form.description.errors %}
+            <div class="text-danger small">{{ item_form.description.errors }}</div>
+        {% endif %}
+        <small class="text-muted d-block" id="ai-status-desc"></small>
+    </div>
+    <div class="mb-3">
+        <label for="{{ item_form.location_found.id_for_label }}">Location Found</label>
+        {{ item_form.location_found }}
+        {% if item_form.location_found.errors %}
+            <div class="text-danger small">{{ item_form.location_found.errors }}</div>
+        {% endif %}
+    </div>
+    <div class="mb-3">
+        <label for="{{ item_form.date_found.id_for_label }}">Date Found *</label>
+        <div class="input-group">
+            {{ item_form.date_found }}
+            <button type="button" class="btn btn-outline-secondary" id="today-btn" title="Set to today's date">
+                📅 Today
+            </button>
+        </div>
+        {% if item_form.date_found.errors %}
+            <div class="text-danger small mt-1">{{ item_form.date_found.errors }}</div>
+        {% endif %}
+        <small class="text-muted d-block mt-1">Format: DD/MM/YYYY (use calendar icon to pick date)</small>
+    </div>
+    <div class="mb-3">
+        <label for="{{ item_form.status.id_for_label }}">Status</label>
+        {{ item_form.status }}
+        {% if item_form.status.errors %}
+            <div class="text-danger small">{{ item_form.status.errors }}</div>
+        {% endif %}
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save Item</button>
+</form>
+
+<script>
+(function() {
+    const maxImages = 3;
+    let imageFieldCount = 1;
+    const formsetPrefix = '{{ formset.prefix }}';
+    const totalFormsInput = document.querySelector(`#id_${formsetPrefix}-TOTAL_FORMS`);
+    
+    function updateTotalForms() {
+        totalFormsInput.value = imageFieldCount;
+    }
+    
+    function addImageField() {
+        if (imageFieldCount >= maxImages) {
+            document.getElementById('add-image-btn').style.display = 'none';
+            return;
+        }
+        
+        imageFieldCount++;
+        updateTotalForms();
+        
+        const container = document.getElementById('image-fields-container');
+        const newField = document.createElement('div');
+        newField.className = 'mb-3 image-field-wrapper';
+        newField.setAttribute('data-field-index', (imageFieldCount - 1).toString());
+        newField.innerHTML = `
+            <label>Image ${imageFieldCount}</label>
+            <div class="d-flex align-items-center gap-2">
+                <input type="file" name="${formsetPrefix}-${imageFieldCount - 1}-image" 
+                       id="id_${formsetPrefix}-${imageFieldCount - 1}-image" 
+                       class="image-upload-input" accept="image/*,.heic,.heif">
+                <button type="button" class="btn btn-sm btn-danger remove-image-btn" style="display: none;">Remove</button>
+            </div>
+            <div class="image-preview mt-2" style="display: none;">
+                <img src="" alt="Preview" class="img-thumbnail" style="max-width: 200px; max-height: 200px; width: auto; height: auto; display: block; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+        `;
+        container.appendChild(newField);
+        
+        const input = newField.querySelector('.image-upload-input');
+        attachImageHandlers(input);
+        attachRemoveHandler(newField);
+        
+        if (imageFieldCount >= maxImages) {
+            document.getElementById('add-image-btn').style.display = 'none';
+        }
+    }
+    
+    function attachRemoveHandler(wrapper) {
+        const removeBtn = wrapper.querySelector('.remove-image-btn');
+        const input = wrapper.querySelector('input[type="file"]');
+        const preview = wrapper.querySelector('.image-preview');
+        
+        removeBtn.addEventListener('click', function() {
+            input.value = '';
+            preview.style.display = 'none';
+            removeBtn.style.display = 'none';
+            // Re-trigger analysis if other images remain
+            analyzeImages();
+        });
+    }
+    
+    function attachImageHandlers(input) {
+        input.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const wrapper = input.closest('.image-field-wrapper');
+            
+            if (!wrapper) {
+                console.error('Could not find image-field-wrapper');
+                return;
+            }
+            
+            const preview = wrapper.querySelector('.image-preview');
+            const img = preview ? preview.querySelector('img') : null;
+            const removeBtn = wrapper.querySelector('.remove-image-btn');
+            
+            if (!preview || !img) {
+                console.error('Could not find preview elements', {preview, img, wrapper});
+                return;
+            }
+            
+            if (file) {
+                console.log('File selected:', file.name, file.type);
+                
+                // Validate it's an image
+                if (!file.type.startsWith('image/') && !file.name.toLowerCase().endsWith('.heic') && !file.name.toLowerCase().endsWith('.heif')) {
+                    alert('Please select an image file');
+                    input.value = '';
+                    return;
+                }
+                
+                // Check if it's a HEIC file
+                const isHeic = file.name.toLowerCase().endsWith('.heic') || 
+                              file.name.toLowerCase().endsWith('.heif') ||
+                              file.type === 'image/heic' || 
+                              file.type === 'image/heif';
+                
+                if (isHeic && typeof heic2any !== 'undefined') {
+                    // Convert HEIC to JPEG for preview
+                    console.log('Converting HEIC file to JPEG...');
+                    preview.innerHTML = '<p class="text-info">Converting HEIC image...</p>';
+                    preview.style.display = 'block';
+                    
+                    heic2any({
+                        blob: file,
+                        toType: 'image/jpeg',
+                        quality: 0.8
+                    }).then(function(conversionResult) {
+                        // heic2any returns an array, get the first blob
+                        const jpegBlob = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult;
+                        const reader = new FileReader();
+                        reader.onload = function(event) {
+                            preview.innerHTML = '<img src="" alt="Preview" class="img-thumbnail" style="max-width: 200px; max-height: 200px; width: auto; height: auto; display: block; border: 1px solid #ddd; border-radius: 4px;">';
+                            const convertedImg = preview.querySelector('img');
+                            convertedImg.src = event.target.result;
+                            preview.style.display = 'block';
+                            if (removeBtn) {
+                                removeBtn.style.display = 'inline-block';
+                            }
+                            console.log('HEIC converted and preview shown');
+                        };
+                        reader.readAsDataURL(jpegBlob);
+                    }).catch(function(error) {
+                        console.error('HEIC conversion error:', error);
+                        preview.innerHTML = '<p class="text-danger">HEIC files are not supported for preview. The file will still be uploaded, but please convert it to JPEG/PNG for better compatibility.</p>';
+                        preview.style.display = 'block';
+                        if (removeBtn) {
+                            removeBtn.style.display = 'inline-block';
+                        }
+                    });
+                } else if (isHeic) {
+                    // HEIC file but converter not available
+                    console.warn('HEIC file detected but converter library not loaded');
+                    preview.innerHTML = '<p class="text-warning">HEIC files cannot be previewed in this browser. The file will still be uploaded, but please convert it to JPEG/PNG for better compatibility.</p>';
+                    preview.style.display = 'block';
+                    if (removeBtn) {
+                        removeBtn.style.display = 'inline-block';
+                    }
+                } else {
+                    // Regular image file (JPEG, PNG, etc.)
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        console.log('FileReader loaded, setting image src');
+                        const dataUrl = event.target.result;
+                        console.log('Data URL length:', dataUrl.length);
+                        
+                        // Set the src and show preview immediately
+                        img.src = dataUrl;
+                        preview.style.display = 'block';
+                        preview.style.visibility = 'visible';
+                        
+                        if (removeBtn) {
+                            removeBtn.style.display = 'inline-block';
+                        }
+                        
+                        // Verify the image loaded
+                        img.onload = function() {
+                            console.log('Image loaded successfully, dimensions:', img.naturalWidth, 'x', img.naturalHeight);
+                        };
+                        img.onerror = function(err) {
+                            console.error('Error loading image into img element:', err);
+                            preview.innerHTML = '<p class="text-danger">Error loading image preview. The file may be corrupted or in an unsupported format.</p>';
+                        };
+                    };
+                    reader.onerror = function(error) {
+                        console.error('FileReader error:', error);
+                        alert('Error reading file. Please try again.');
+                    };
+                    reader.onprogress = function(e) {
+                        if (e.lengthComputable) {
+                            const percentLoaded = Math.round((e.loaded / e.total) * 100);
+                            console.log('Loading:', percentLoaded + '%');
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                }
+                
+                // Trigger AI analysis (will work with original file)
+                analyzeImages();
+            } else {
+                // Hide preview if file is cleared
+                console.log('File cleared');
+                preview.style.display = 'none';
+                if (removeBtn) {
+                    removeBtn.style.display = 'none';
+                }
+            }
+        });
+    }
+    
+    function analyzeImages() {
+        const formData = new FormData();
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (!csrfToken) {
+            console.error('CSRF token not found');
+            return;
+        }
+        formData.append('csrfmiddlewaretoken', csrfToken.value);
+        
+        // Collect all uploaded images
+        const imageInputs = document.querySelectorAll('.image-upload-input');
+        let hasImages = false;
+        imageInputs.forEach((input, index) => {
+            if (input.files && input.files[0]) {
+                formData.append(`image_${index}`, input.files[0]);
+                hasImages = true;
+            }
+        });
+        
+        if (!hasImages) {
+            // Clear AI status if no images
+            document.getElementById('ai-status-title').textContent = '';
+            document.getElementById('ai-status-desc').textContent = '';
+            return;
+        }
+        
+        // Show loading indicator
+        const titleField = document.querySelector('#id_title');
+        const descField = document.querySelector('#id_description');
+        const titleStatus = document.getElementById('ai-status-title');
+        const descStatus = document.getElementById('ai-status-desc');
+        const originalTitle = titleField.value;
+        const originalDesc = descField.value;
+        
+        // Only auto-fill if fields are empty
+        if (originalTitle && originalDesc) {
+            titleStatus.textContent = '';
+            descStatus.textContent = '';
+            return;
+        }
+        
+        titleField.disabled = true;
+        descField.disabled = true;
+        titleStatus.textContent = 'Analyzing image...';
+        descStatus.textContent = 'Analyzing image...';
+        
+        fetch('{% url "inventory:analyze_images_ajax" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('AI response:', data);
+            let filledTitle = false;
+            let filledDesc = false;
+            
+            if (data.title && !originalTitle) {
+                titleField.value = data.title;
+                filledTitle = true;
+                titleStatus.textContent = '✓ AI-generated from image';
+                titleStatus.className = 'text-success d-block';
+            } else if (data.title) {
+                titleStatus.textContent = 'AI suggestion available (field already filled)';
+                titleStatus.className = 'text-muted d-block';
+            } else {
+                titleStatus.textContent = '';
+            }
+            
+            if (data.description && !originalDesc) {
+                descField.value = data.description;
+                filledDesc = true;
+                descStatus.textContent = '✓ AI-generated from image';
+                descStatus.className = 'text-success d-block';
+            } else if (data.description) {
+                descStatus.textContent = 'AI suggestion available (field already filled)';
+                descStatus.className = 'text-muted d-block';
+            } else {
+                descStatus.textContent = '';
+            }
+            
+            if (!filledTitle && !filledDesc && (!data.title && !data.description)) {
+                titleStatus.textContent = 'No AI suggestions available';
+                titleStatus.className = 'text-warning d-block';
+                descStatus.textContent = 'No AI suggestions available';
+                descStatus.className = 'text-warning d-block';
+            }
+        })
+        .catch(error => {
+            console.error('Error analyzing images:', error);
+            titleStatus.textContent = 'Error: Could not analyze image. Check console for details.';
+            titleStatus.className = 'text-danger d-block';
+            descStatus.textContent = 'Error: Could not analyze image. Check console for details.';
+            descStatus.className = 'text-danger d-block';
+        })
+        .finally(() => {
+            titleField.disabled = false;
+            descField.disabled = false;
+        });
+    }
+    
+    // Initialize
+    document.getElementById('add-image-btn').addEventListener('click', addImageField);
+    if (imageFieldCount < maxImages) {
+        document.getElementById('add-image-btn').style.display = 'inline-block';
+    }
+    
+    // Wait for DOM to be fully ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeHandlers);
+    } else {
+        initializeHandlers();
+    }
+    
+    function initializeHandlers() {
+        console.log('Initializing image handlers...');
+        // Attach handlers to initial image field(s) - find all file inputs in image-field-wrapper
+        const wrappers = document.querySelectorAll('.image-field-wrapper');
+        console.log('Found', wrappers.length, 'image field wrappers');
+        
+        wrappers.forEach((wrapper, index) => {
+            const input = wrapper.querySelector('input[type="file"]');
+            if (input) {
+                console.log('Attaching handler to input', index, input.id);
+                input.classList.add('image-upload-input');
+                // Add HEIC support to accept attribute if not already present
+                if (input.accept && !input.accept.includes('.heic')) {
+                    input.accept = input.accept + ',.heic,.heif';
+                } else if (!input.accept) {
+                    input.accept = 'image/*,.heic,.heif';
+                }
+                attachImageHandlers(input);
+                attachRemoveHandler(wrapper);
+            } else {
+                console.warn('No file input found in wrapper', index);
+            }
+        });
+        
+        // Today button functionality
+        const todayBtn = document.getElementById('today-btn');
+        const dateInput = document.querySelector('#id_date_found');
+        
+        if (todayBtn && dateInput) {
+            todayBtn.addEventListener('click', function() {
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                dateInput.value = `${year}-${month}-${day}`;
+                
+                // Visual feedback
+                todayBtn.classList.add('btn-success');
+                todayBtn.classList.remove('btn-outline-secondary');
+                setTimeout(function() {
+                    todayBtn.classList.remove('btn-success');
+                    todayBtn.classList.add('btn-outline-secondary');
+                }, 500);
+            });
+        }
+    }
+})();
+</script>
+{% endblock %}

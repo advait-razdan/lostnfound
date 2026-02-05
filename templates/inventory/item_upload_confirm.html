@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="mb-4">Confirm Item Details</h1>
+
+<p class="text-muted">
+    Review and adjust the details before saving.
+    {% if used_vision %}
+        Suggested title and description were generated from the uploaded images.
+    {% endif %}
+</p>
+
+<form method="post" enctype="multipart/form-data" class="card p-4">
+    {% csrf_token %}
+
+    <h5 class="mb-3">Item details</h5>
+    {{ item_form.as_p }}
+
+    <h5 class="mt-4 mb-3">Images</h5>
+    {{ formset.management_form }}
+    {% for form in formset %}
+        <div class="mb-3">
+            {{ form.image.label_tag }} {{ form.image }}
+            {% if form.instance.pk and form.instance.image %}
+                <div class="mt-2">
+                    <img src="{{ form.instance.image.url }}" alt="" style="max-width: 200px;">
+                </div>
+            {% endif %}
+        </div>
+    {% endfor %}
+
+    <button type="submit" class="btn btn-success">Save Item</button>
+</form>
+{% endblock %}
+
+
