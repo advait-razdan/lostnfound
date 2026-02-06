@@ -55,7 +55,7 @@
                 <div class="d-flex align-items-center gap-2">
                     <button type="button" class="btn btn-outline-primary upload-choice-btn"> Upload </button>
                     <button type="button" class="btn btn-outline-success camera-choice-btn" aria-label="Capture image using camera"> Camera </button>
-                    {{ form.image|add_class:"image-upload-input" }}
+                    {{ form.image }}
                     <button type="button" class="btn btn-sm btn-danger remove-image-btn" style="display: none;">Remove</button>
                 </div>
                 {% if form.image.errors %}
@@ -177,16 +177,31 @@
 
         if (!uploadBtn || !cameraBtn || !input) return;
 
-        // Upload triggers file picker
-        uploadBtn.addEventListener('click', () => {
+        // Upload triggers file picker (no camera)
+        uploadBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            // Remove capture attribute and ensure accept is set
             input.removeAttribute("capture");
-            input.click();
+            input.setAttribute("accept", "image/*,.heic,.heif");
+            // Use requestAnimationFrame to ensure attribute change is processed
+            requestAnimationFrame(function() {
+                input.click();
+            });
         });
 
         // Camera triggers device camera
-        cameraBtn.addEventListener('click', () => {
+        cameraBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            // Set capture attribute to force camera on mobile/desktop
+            // "environment" = back camera, "user" = front camera
             input.setAttribute("capture", "environment");
-            input.click();
+            input.setAttribute("accept", "image/*");
+            // Use requestAnimationFrame to ensure attribute change is processed
+            requestAnimationFrame(function() {
+                input.click();
+            });
         });
     }
     
