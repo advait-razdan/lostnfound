@@ -1,142 +1,312 @@
-{% extends "base.html" %}
-
-
-{% block content %}
-<h1 class="mb-4">Upload Lost &amp; Found Item</h1>
-
-{% if item_form.errors or formset.errors or formset.non_form_errors %}
-    <div class="alert alert-danger mb-4">
-        <h5>Please correct the following errors:</h5>
-        <ul class="mb-0">
-            {% if item_form.non_field_errors %}
-                {% for error in item_form.non_field_errors %}
-                    <li>{{ error }}</li>
-                {% endfor %}
-            {% endif %}
-            {% if formset.non_form_errors %}
-                {% for error in formset.non_form_errors %}
-                    <li>{{ error }}</li>
-                {% endfor %}
-            {% endif %}
-            {% for field in item_form %}
-                {% if field.errors %}
-                    <li><strong>{{ field.label }}:</strong> {{ field.errors|join:", " }}</li>
-                {% endif %}
-            {% endfor %}
-            {% for form in formset %}
-                {% if form.errors %}
-                    {% for field in form %}
-                        {% if field.errors %}
-                            <li><strong>Image {{ forloop.parentloop.counter }} - {{ field.label }}:</strong> {{ field.errors|join:", " }}</li>
-                        {% endif %}
-                    {% endfor %}
-                    {% if form.non_field_errors %}
-                        <li><strong>Image {{ forloop.counter }}:</strong> {{ form.non_field_errors|join:", " }}</li>
-                    {% endif %}
-                {% endif %}
-            {% endfor %}
-        </ul>
-    </div>
-{% endif %}
-
-<form method="post" enctype="multipart/form-data" class="card p-4" id="upload-form">
-    {% csrf_token %}
-
-    <h5 class="mb-3">Images <small class="text-muted">(Optional)</small></h5>
-    <div id="image-fields-container">
-        <style>
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Upload Item - Trace Lost & Found</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js" crossorigin="anonymous"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        body { font-family: 'Inter', sans-serif; }
         .image-upload-input {
             display: none;
         }
-        </style>
-        {{ formset.management_form }}
-        {% for form in formset %}
-            <div class="mb-3 image-field-wrapper" data-field-index="{{ forloop.counter0 }}">
-                <label for="{{ form.image.id_for_label }}">Image {{ forloop.counter }}</label>
-                <div class="d-flex align-items-center gap-2">
-                    <button type="button" class="btn btn-outline-primary upload-choice-btn"> Upload </button>
-                    <button type="button" class="btn btn-outline-success camera-choice-btn" aria-label="Capture image using camera"> Camera </button>
-                    {{ form.image }}
-                    <button type="button" class="btn btn-sm btn-danger remove-image-btn" style="display: none;">Remove</button>
-                </div>
-                {% if form.image.errors %}
-                    <div class="text-danger small">{{ form.image.errors }}</div>
-                {% endif %}
-                <small class="text-muted">Supported: JPEG, PNG, GIF, WebP, HEIC</small>
-                <div class="image-preview mt-2" style="display: none;">
-                    <img src="" alt="Preview" class="img-thumbnail" style="max-width: 200px; max-height: 200px; width: auto; height: auto; display: block; border: 1px solid #ddd; border-radius: 4px;">
-                </div>
-            </div>
-        {% endfor %}
-    </div>
-    <button type="button" class="btn btn-secondary btn-sm mb-4" id="add-image-btn" style="display: none;">
-        + Add Another Image
-    </button>
-
-    <h5 class="mt-4 mb-3">Item details</h5>
-    <div class="mb-3">
-        <label for="{{ item_form.title.id_for_label }}">Title *</label>
-        {{ item_form.title }}
-        {% if item_form.title.errors %}
-            <div class="text-danger small">{{ item_form.title.errors }}</div>
-        {% endif %}
-        <small class="text-muted d-block" id="ai-status-title"></small>
-    </div>
-    <div class="mb-3">
-        <label for="{{ item_form.description.id_for_label }}">Description</label>
-        {{ item_form.description }}
-        {% if item_form.description.errors %}
-            <div class="text-danger small">{{ item_form.description.errors }}</div>
-        {% endif %}
-        <small class="text-muted d-block" id="ai-status-desc"></small>
-    </div>
-    <div class="mb-3">
-        <label for="{{ item_form.location_found.id_for_label }}">Location Found</label>
-        {{ item_form.location_found }}
-        {% if item_form.location_found.errors %}
-            <div class="text-danger small">{{ item_form.location_found.errors }}</div>
-        {% endif %}
-    </div>
-    <div class="mb-3">
-        <label for="{{ item_form.date_found.id_for_label }}">Date Found *</label>
-        <div class="input-group">
-            {{ item_form.date_found }}
-            <button type="button" class="btn btn-outline-secondary" id="today-btn" title="Set to today's date">
-                📅 Today
-            </button>
+        /* Style Django form fields */
+        #upload-form input[type="text"],
+        #upload-form input[type="date"],
+        #upload-form textarea,
+        #upload-form select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 0.75rem;
+            background: white;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+        #upload-form input[type="text"]:focus,
+        #upload-form input[type="date"]:focus,
+        #upload-form textarea:focus,
+        #upload-form select:focus {
+            outline: none;
+            border-color: #06b6d4;
+            box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.2);
+        }
+        #upload-form textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+    </style>
+</head>
+<body class="bg-[#F8FAFC] text-slate-900">
+<!-- SIDEBAR: The 7 Sections -->
+<div class="flex min-h-screen flex-nowrap">
+  <aside class="m-4 flex hidden w-80 flex-col rounded-[2.5rem] bg-[#0F172A] shadow-2xl xl:flex">
+    <div class="p-10 pt-12">
+      <!-- LOGO -->
+      <div class="mb-10 flex items-center gap-4 px-2 select-none">
+        <!-- Icon -->
+        <div class="relative h-14 w-14">
+          <!-- Gradient Pin -->
+          <div class="absolute inset-0 rounded-full bg-gradient-to-br from-teal-400 via-cyan-400 to-purple-500 shadow-xl"></div>
+          <!-- Magnifier Handle -->
+          <div class="absolute -bottom-1 -left-1 h-8 w-4 rotate-45 rounded-full bg-gradient-to-br from-purple-400 to-purple-600"></div>
+          <!-- Robot Face -->
+          <div class="absolute inset-2 flex items-center justify-center rounded-full bg-[#0F172A]">
+            <svg viewBox="0 0 24 24" class="h-7 w-7 text-cyan-400" fill="currentColor">
+              <rect x="4" y="6" width="16" height="12" rx="4" />
+              <circle cx="9" cy="12" r="1.3" />
+              <circle cx="15" cy="12" r="1.3" />
+              <rect x="11" y="2" width="2" height="3" rx="1" />
+            </svg>
+          </div>
         </div>
-        {% if item_form.date_found.errors %}
-            <div class="text-danger small mt-1">{{ item_form.date_found.errors }}</div>
-        {% endif %}
-        <small class="text-muted d-block mt-1">Format: DD/MM/YYYY (use calendar icon to pick date)</small>
+        <!-- Text -->
+        <div class="leading-tight">
+          <h1 class="bg-gradient-to-r from-teal-300 to-purple-400 bg-clip-text text-3xl font-black tracking-tight text-transparent">Trace</h1>
+          <p class="text-xs font-bold tracking-widest text-slate-400 uppercase">Lost & Found • AI Powered</p>
+        </div>
+      </div>
+
+      <nav class="space-y-1">
+        <!-- All Items -->
+        <a href="{% url 'inventory:item_list' %}" class="flex items-center gap-4 rounded-2xl text-slate-400 hover:bg-white/5 hover:text-white px-4 py-3 transition-all">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+          <span class="font-bold">All Items</span>
+        </a>
+        <!-- Electronics -->
+        <a href="{% url 'inventory:item_list' %}?category=ELECTRONICS" class="flex items-center gap-4 rounded-2xl text-slate-400 hover:bg-white/5 hover:text-white px-4 py-3 transition-all">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
+          <span class="font-medium">Electronics</span>
+        </a>
+        <!-- Bags & Carry -->
+        <a href="{% url 'inventory:item_list' %}?category=BAGS_AND_CARRY" class="flex items-center gap-4 rounded-2xl text-slate-400 hover:bg-white/5 hover:text-white px-4 py-3 transition-all">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+          <span class="font-medium">Bags & Carry</span>
+        </a>
+        <!-- Sports & Clothing -->
+        <a href="{% url 'inventory:item_list' %}?category=SPORTS_AND_CLOTHING" class="flex items-center gap-4 rounded-2xl text-slate-400 hover:bg-white/5 hover:text-white px-4 py-3 transition-all">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
+          <span class="font-medium">Sports & Clothing</span>
+        </a>
+        <!-- Bottles & Containers -->
+        <a href="{% url 'inventory:item_list' %}?category=BOTTLES_AND_CONTAINERS" class="flex items-center gap-4 rounded-2xl text-slate-400 hover:bg-white/5 hover:text-white px-4 py-3 transition-all">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+          <span class="font-medium">Bottles & Containers</span>
+        </a>
+        <!-- Documents & IDs -->
+        <a href="{% url 'inventory:item_list' %}?category=DOCUMENTS_AND_IDS" class="flex items-center gap-4 rounded-2xl text-slate-400 hover:bg-white/5 hover:text-white px-4 py-3 transition-all">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          <span class="font-medium">Documents & IDs</span>
+        </a>
+        <!-- Notebooks & Books -->
+        <a href="{% url 'inventory:item_list' %}?category=NOTEBOOKS_AND_BOOKS" class="flex items-center gap-4 rounded-2xl text-slate-400 hover:bg-white/5 hover:text-white px-4 py-3 transition-all">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+          <span class="font-medium">Notebooks & Books</span>
+        </a>
+        <!-- Other / Misc -->
+        <a href="{% url 'inventory:item_list' %}?category=OTHER_MISC" class="flex items-center gap-4 rounded-2xl text-slate-400 hover:bg-white/5 hover:text-white px-4 py-3 transition-all">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"></path></svg>
+          <span class="font-medium">Other / Misc</span>
+        </a>
+      </nav>
     </div>
-    <div class="mb-3">
-        <label for="{{ item_form.category.id_for_label }}">Category</label>
-        {{ item_form.category }}
-        {% if item_form.category.errors %}
-            <div class="text-danger small">{{ item_form.category.errors }}</div>
+  </aside>
+  
+  <!-- MAIN AREA -->
+  <main class="flex-1 overflow-y-auto p-8">
+    <!-- Top Header: Auth Toggle Area -->
+    <header class="mb-10 flex justify-end">
+      <div id="auth-button-container">
+        {% if user.is_authenticated and user.is_staff %}
+          <a href="{% url 'logout' %}" class="inline-block rounded-xl bg-red-600 px-6 py-3 font-bold text-white shadow-lg shadow-red-500/30 transition hover:bg-red-700 active:scale-95">Logout</a>
+          <a href="{% url 'inventory:item_list' %}" class="ml-4 inline-block rounded-xl bg-slate-700 px-6 py-3 font-bold text-white shadow-lg transition hover:bg-slate-800 active:scale-95">Browse Items</a>
+        {% else %}
+          <a href="{% url 'login' %}" class="inline-block rounded-xl bg-purple-600 px-6 py-3 font-bold text-white shadow-lg shadow-purple-500/30 transition hover:bg-purple-700 active:scale-95">Staff Login</a>
         {% endif %}
-        <small class="text-muted d-block">
-            AI will try to pick one of: Electronics, Bags and Carry, Sports and clothing,
-            Bottles and containers, Documents and Id's, Notebooks/books, Other/Misc.
-        </small>
-        <small id="ai-status-category" class="form-text text-muted"></small>
-    </div>
-    <div class="mb-3">
-        <label for="{{ item_form.status.id_for_label }}">Status</label>
-        {{ item_form.status }}
-        {% if item_form.status.errors %}
-            <div class="text-danger small">{{ item_form.status.errors }}</div>
-        {% endif %}
+      </div>
+    </header>
+
+    <!-- Back Button -->
+    <div class="mb-8">
+      <a href="{% url 'inventory:item_list' %}" class="inline-flex items-center gap-2 text-slate-600 hover:text-cyan-600 transition-colors font-medium">
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+        Back to Browse Items
+      </a>
     </div>
 
-    <button type="submit" class="btn btn-primary">Save Item</button>
-</form>
+    <!-- Page Header -->
+    <div class="mb-8">
+      <h1 class="text-4xl font-black tracking-tight text-[#0F172A] mb-2 uppercase">Upload Lost & Found Item</h1>
+      <p class="text-slate-500 font-medium">Use AI-powered image analysis to automatically fill item details</p>
+    </div>
+
+    <!-- Error Messages -->
+    {% if item_form.errors or formset.errors or formset.non_form_errors %}
+    <div class="mb-6 rounded-2xl bg-red-50 border-2 border-red-200 p-6">
+      <div class="flex items-start gap-3">
+        <svg class="h-6 w-6 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <div>
+          <h3 class="font-bold text-red-900 mb-2">Please correct the following errors:</h3>
+          <ul class="list-disc list-inside space-y-1 text-red-800 text-sm">
+            {% if item_form.non_field_errors %}
+              {% for error in item_form.non_field_errors %}
+                <li>{{ error }}</li>
+              {% endfor %}
+            {% endif %}
+            {% if formset.non_form_errors %}
+              {% for error in formset.non_form_errors %}
+                <li>{{ error }}</li>
+              {% endfor %}
+            {% endif %}
+            {% for field in item_form %}
+              {% if field.errors %}
+                <li><strong>{{ field.label }}:</strong> {{ field.errors|join:", " }}</li>
+              {% endif %}
+            {% endfor %}
+            {% for form in formset %}
+              {% if form.errors %}
+                {% for field in form %}
+                  {% if field.errors %}
+                    <li><strong>Image {{ forloop.parentloop.counter }} - {{ field.label }}:</strong> {{ field.errors|join:", " }}</li>
+                  {% endif %}
+                {% endfor %}
+                {% if form.non_field_errors %}
+                  <li><strong>Image {{ forloop.counter }}:</strong> {{ form.non_field_errors|join:", " }}</li>
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Upload Form -->
+    <form method="post" enctype="multipart/form-data" class="rounded-[2.5rem] border border-slate-100 bg-white shadow-lg p-8" id="upload-form">
+      {% csrf_token %}
+
+      <!-- Images Section -->
+      <div class="mb-8">
+        <h2 class="text-2xl font-black text-[#0F172A] mb-4 uppercase tracking-tight">Images <span class="text-base font-normal text-slate-500 normal-case">(Optional)</span></h2>
+        <div id="image-fields-container" class="space-y-4">
+          {{ formset.management_form }}
+          {% for form in formset %}
+            <div class="image-field-wrapper rounded-xl border border-slate-200 bg-slate-50 p-4" data-field-index="{{ forloop.counter0 }}">
+              <label for="{{ form.image.id_for_label }}" class="block text-sm font-bold text-slate-700 mb-2">Image {{ forloop.counter }}</label>
+              <div class="flex items-center gap-3 mb-2">
+                <button type="button" class="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-cyan-500/20 transition hover:bg-cyan-600 upload-choice-btn">Upload</button>
+                <button type="button" class="rounded-xl bg-green-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-green-500/20 transition hover:bg-green-600 camera-choice-btn" aria-label="Capture image using camera">Camera</button>
+                {{ form.image }}
+                <button type="button" class="rounded-xl bg-red-500 px-4 py-2 text-sm font-bold text-white shadow-lg transition hover:bg-red-600 remove-image-btn hidden">Remove</button>
+              </div>
+              {% if form.image.errors %}
+                <p class="text-sm text-red-600 mt-1">{{ form.image.errors|join:", " }}</p>
+              {% endif %}
+              <p class="text-xs text-slate-500 mt-1">Supported: JPEG, PNG, GIF, WebP, HEIC</p>
+              <div class="image-preview mt-3 hidden">
+                <img src="" alt="Preview" class="rounded-xl border-2 border-slate-300 max-w-[200px] max-h-[200px] w-auto h-auto">
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+        <button type="button" class="mt-4 rounded-xl bg-slate-600 px-4 py-2 text-sm font-bold text-white shadow-lg transition hover:bg-slate-700 hidden" id="add-image-btn">
+          + Add Another Image
+        </button>
+      </div>
+
+      <!-- Item Details Section -->
+      <div class="mb-8">
+        <h2 class="text-2xl font-black text-[#0F172A] mb-6 uppercase tracking-tight">Item Details</h2>
+        
+        <div class="space-y-6">
+          <!-- Title -->
+          <div>
+            <label for="{{ item_form.title.id_for_label }}" class="block text-sm font-bold text-slate-700 mb-2">Title *</label>
+            {{ item_form.title }}
+            {% if item_form.title.errors %}
+              <p class="text-sm text-red-600 mt-1">{{ item_form.title.errors|join:", " }}</p>
+            {% endif %}
+            <p class="text-xs text-slate-500 mt-1" id="ai-status-title"></p>
+          </div>
+
+          <!-- Description -->
+          <div>
+            <label for="{{ item_form.description.id_for_label }}" class="block text-sm font-bold text-slate-700 mb-2">Description</label>
+            {{ item_form.description }}
+            {% if item_form.description.errors %}
+              <p class="text-sm text-red-600 mt-1">{{ item_form.description.errors|join:", " }}</p>
+            {% endif %}
+            <p class="text-xs text-slate-500 mt-1" id="ai-status-desc"></p>
+          </div>
+
+          <!-- Location Found -->
+          <div>
+            <label for="{{ item_form.location_found.id_for_label }}" class="block text-sm font-bold text-slate-700 mb-2">Location Found</label>
+            {{ item_form.location_found }}
+            {% if item_form.location_found.errors %}
+              <p class="text-sm text-red-600 mt-1">{{ item_form.location_found.errors|join:", " }}</p>
+            {% endif %}
+          </div>
+
+          <!-- Date Found -->
+          <div>
+            <label for="{{ item_form.date_found.id_for_label }}" class="block text-sm font-bold text-slate-700 mb-2">Date Found *</label>
+            <div class="flex gap-3">
+              <div class="flex-1">
+                {{ item_form.date_found }}
+              </div>
+              <button type="button" class="rounded-xl bg-slate-600 px-4 py-2 text-sm font-bold text-white shadow-lg transition hover:bg-slate-700" id="today-btn" title="Set to today's date">
+                📅 Today
+              </button>
+            </div>
+            {% if item_form.date_found.errors %}
+              <p class="text-sm text-red-600 mt-1">{{ item_form.date_found.errors|join:", " }}</p>
+            {% endif %}
+            <p class="text-xs text-slate-500 mt-1">Format: YYYY-MM-DD (use calendar icon to pick date)</p>
+          </div>
+
+          <!-- Category -->
+          <div>
+            <label for="{{ item_form.category.id_for_label }}" class="block text-sm font-bold text-slate-700 mb-2">Category</label>
+            {{ item_form.category }}
+            {% if item_form.category.errors %}
+              <p class="text-sm text-red-600 mt-1">{{ item_form.category.errors|join:", " }}</p>
+            {% endif %}
+            <p class="text-xs text-slate-500 mt-1">
+              AI will try to pick one of: Electronics, Bags and Carry, Sports and clothing,
+              Bottles and containers, Documents and Id's, Notebooks/books, Other/Misc.
+            </p>
+            <p class="text-xs text-slate-500 mt-1" id="ai-status-category"></p>
+          </div>
+
+          <!-- Status -->
+          <div>
+            <label for="{{ item_form.status.id_for_label }}" class="block text-sm font-bold text-slate-700 mb-2">Status</label>
+            {{ item_form.status }}
+            {% if item_form.status.errors %}
+              <p class="text-sm text-red-600 mt-1">{{ item_form.status.errors|join:", " }}</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <div class="pt-6 border-t border-slate-200">
+        <button type="submit" class="w-full rounded-2xl bg-purple-600 py-5 text-center text-sm font-black tracking-widest text-white uppercase shadow-lg shadow-purple-500/30 transition-all hover:bg-purple-700 active:scale-95">
+          Save Item
+        </button>
+      </div>
+    </form>
+  </main>
+</div>
 
 <script>
 (function() {
     const maxImages = 3;
-    let imageFieldCount = document.querySelectorAll('.image-field-wrapper').length; //not hardcoded to 1 -> check
+    let imageFieldCount = document.querySelectorAll('.image-field-wrapper').length;
     const formsetPrefix = '{{ formset.prefix }}';
     const totalFormsInput = document.querySelector(`#id_${formsetPrefix}-TOTAL_FORMS`);
     
@@ -146,7 +316,7 @@
     
     function addImageField() {
         if (imageFieldCount >= maxImages) {
-            document.getElementById('add-image-btn').style.display = 'none';
+            document.getElementById('add-image-btn').classList.add('hidden');
             return;
         }
         
@@ -155,20 +325,20 @@
         
         const container = document.getElementById('image-fields-container');
         const newField = document.createElement('div');
-        newField.className = 'mb-3 image-field-wrapper';
+        newField.className = 'image-field-wrapper rounded-xl border border-slate-200 bg-slate-50 p-4';
         newField.setAttribute('data-field-index', (imageFieldCount - 1).toString());
         newField.innerHTML = `
-            <label>Image ${imageFieldCount}</label>
-            <div class="d-flex align-items-center gap-2">
-                <button type="button" class="btn btn-outline-primary upload-choice-btn"> Upload </button>
-                <button type="button" class="btn btn-outline-success camera-choice-btn"> Camera </button>
+            <label class="block text-sm font-bold text-slate-700 mb-2">Image ${imageFieldCount}</label>
+            <div class="flex items-center gap-3 mb-2">
+                <button type="button" class="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-cyan-500/20 transition hover:bg-cyan-600 upload-choice-btn">Upload</button>
+                <button type="button" class="rounded-xl bg-green-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-green-500/20 transition hover:bg-green-600 camera-choice-btn">Camera</button>
                 <input type="file" name="${formsetPrefix}-${imageFieldCount - 1}-image" 
                        id="id_${formsetPrefix}-${imageFieldCount - 1}-image" 
                        class="image-upload-input" accept="image/*,.heic,.heif">
-                <button type="button" class="btn btn-sm btn-danger remove-image-btn" style="display: none;">Remove</button>
+                <button type="button" class="rounded-xl bg-red-500 px-4 py-2 text-sm font-bold text-white shadow-lg transition hover:bg-red-600 remove-image-btn hidden">Remove</button>
             </div>
-            <div class="image-preview mt-2" style="display: none;">
-                <img src="" alt="Preview" class="img-thumbnail" style="max-width: 200px; max-height: 200px; width: auto; height: auto; display: block; border: 1px solid #ddd; border-radius: 4px;">
+            <div class="image-preview mt-3 hidden">
+                <img src="" alt="Preview" class="rounded-xl border-2 border-slate-300 max-w-[200px] max-h-[200px] w-auto h-auto">
             </div>
         `;
         container.appendChild(newField);
@@ -179,7 +349,7 @@
         attachChoiceButtons(newField);
         
         if (imageFieldCount >= maxImages) {
-            document.getElementById('add-image-btn').style.display = 'none';
+            document.getElementById('add-image-btn').classList.add('hidden');
         }
     }
     
@@ -190,28 +360,21 @@
 
         if (!uploadBtn || !cameraBtn || !input) return;
 
-        // Upload triggers file picker (no camera)
         uploadBtn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            // Remove capture attribute and ensure accept is set
             input.removeAttribute("capture");
             input.setAttribute("accept", "image/*,.heic,.heif");
-            // Use requestAnimationFrame to ensure attribute change is processed
             requestAnimationFrame(function() {
                 input.click();
             });
         });
 
-        // Camera triggers device camera
         cameraBtn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            // Set capture attribute to force camera on mobile/desktop
-            // "environment" = back camera, "user" = front camera
             input.setAttribute("capture", "environment");
             input.setAttribute("accept", "image/*");
-            // Use requestAnimationFrame to ensure attribute change is processed
             requestAnimationFrame(function() {
                 input.click();
             });
@@ -225,9 +388,8 @@
         
         removeBtn.addEventListener('click', function() {
             input.value = '';
-            preview.style.display = 'none';
-            removeBtn.style.display = 'none';
-            // Re-trigger analysis if other images remain
+            preview.classList.add('hidden');
+            removeBtn.classList.add('hidden');
             analyzeImages();
         });
     }
@@ -254,84 +416,75 @@
             if (file) {
                 console.log('File selected:', file.name, file.type);
                 
-                // Validate it's an image
                 if (!file.type.startsWith('image/') && !file.name.toLowerCase().endsWith('.heic') && !file.name.toLowerCase().endsWith('.heif')) {
                     alert('Please select an image file');
                     input.value = '';
                     return;
                 }
                 
-                // Check if it's a HEIC file
                 const isHeic = file.name.toLowerCase().endsWith('.heic') || 
                               file.name.toLowerCase().endsWith('.heif') ||
                               file.type === 'image/heic' || 
                               file.type === 'image/heif';
                 
                 if (isHeic && typeof heic2any !== 'undefined') {
-                    // Convert HEIC to JPEG for preview
                     console.log('Converting HEIC file to JPEG...');
-                    preview.innerHTML = '<p class="text-info">Converting HEIC image...</p>';
-                    preview.style.display = 'block';
+                    preview.innerHTML = '<p class="text-cyan-600">Converting HEIC image...</p>';
+                    preview.classList.remove('hidden');
                     
                     heic2any({
                         blob: file,
                         toType: 'image/jpeg',
                         quality: 0.8
                     }).then(function(conversionResult) {
-                        // heic2any returns an array, get the first blob
                         const jpegBlob = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult;
                         const reader = new FileReader();
                         reader.onload = function(event) {
-                            preview.innerHTML = '<img src="" alt="Preview" class="img-thumbnail" style="max-width: 200px; max-height: 200px; width: auto; height: auto; display: block; border: 1px solid #ddd; border-radius: 4px;">';
+                            preview.innerHTML = '<img src="" alt="Preview" class="rounded-xl border-2 border-slate-300 max-w-[200px] max-h-[200px] w-auto h-auto">';
                             const convertedImg = preview.querySelector('img');
                             convertedImg.src = event.target.result;
-                            preview.style.display = 'block';
+                            preview.classList.remove('hidden');
                             if (removeBtn) {
-                                removeBtn.style.display = 'inline-block';
+                                removeBtn.classList.remove('hidden');
                             }
                             console.log('HEIC converted and preview shown');
                         };
                         reader.readAsDataURL(jpegBlob);
                     }).catch(function(error) {
                         console.error('HEIC conversion error:', error);
-                        preview.innerHTML = '<p class="text-danger">HEIC files are not supported for preview. The file will still be uploaded, but please convert it to JPEG/PNG for better compatibility.</p>';
-                        preview.style.display = 'block';
+                        preview.innerHTML = '<p class="text-red-600 text-sm">HEIC files are not supported for preview. The file will still be uploaded, but please convert it to JPEG/PNG for better compatibility.</p>';
+                        preview.classList.remove('hidden');
                         if (removeBtn) {
-                            removeBtn.style.display = 'inline-block';
+                            removeBtn.classList.remove('hidden');
                         }
                     });
                 } else if (isHeic) {
-                    // HEIC file but converter not available
                     console.warn('HEIC file detected but converter library not loaded');
-                    preview.innerHTML = '<p class="text-warning">HEIC files cannot be previewed in this browser. The file will still be uploaded, but please convert it to JPEG/PNG for better compatibility.</p>';
-                    preview.style.display = 'block';
+                    preview.innerHTML = '<p class="text-yellow-600 text-sm">HEIC files cannot be previewed in this browser. The file will still be uploaded, but please convert it to JPEG/PNG for better compatibility.</p>';
+                    preview.classList.remove('hidden');
                     if (removeBtn) {
-                        removeBtn.style.display = 'inline-block';
+                        removeBtn.classList.remove('hidden');
                     }
                 } else {
-                    // Regular image file (JPEG, PNG, etc.)
                     const reader = new FileReader();
                     reader.onload = function(event) {
                         console.log('FileReader loaded, setting image src');
                         const dataUrl = event.target.result;
                         console.log('Data URL length:', dataUrl.length);
                         
-                        // Set the src and show preview immediately
                         img.src = dataUrl;
-                        preview.style.display = 'block';
-                        preview.style.visibility = 'visible';
+                        preview.classList.remove('hidden');
                         
                         if (removeBtn) {
-                            removeBtn.style.display = 'inline-block';
+                            removeBtn.classList.remove('hidden');
                         }
                         
-                        // Verify the image loaded
                         img.onload = function() {
                             console.log('Image loaded successfully, dimensions:', img.naturalWidth, 'x', img.naturalHeight);
                         };
                         img.onerror = function(err) {
                             console.error('Error loading image into img element:', err);
-                            preview.innerHTML = '<p class="text-danger">Error loading image preview. The file may be corrupted or in an unsupported format.</p>';
+                            preview.innerHTML = '<p class="text-red-600 text-sm">Error loading image preview. The file may be corrupted or in an unsupported format.</p>';
                         };
                     };
                     reader.onerror = function(error) {
@@ -347,20 +500,17 @@
                     reader.readAsDataURL(file);
                 }
                 
-                // Trigger AI analysis (will work with original file)
                 analyzeImages();
             } else {
-                // Hide preview if file is cleared
                 console.log('File cleared');
-                preview.style.display = 'none';
+                preview.classList.add('hidden');
                 if (removeBtn) {
-                    removeBtn.style.display = 'none';
+                    removeBtn.classList.add('hidden');
                 }
             }
         });
     }
     
-    // Track AI-generated values to detect when to regenerate
     let lastAITitle = '';
     let lastAIDescription = '';
     let isAIGeneratedTitle = false;
@@ -375,7 +525,6 @@
         }
         formData.append('csrfmiddlewaretoken', csrfToken.value);
         
-        // Collect all uploaded images
         const imageInputs = document.querySelectorAll('.image-upload-input');
         let hasImages = false;
         imageInputs.forEach((input, index) => {
@@ -386,10 +535,8 @@
         });
         
         if (!hasImages) {
-            // Clear AI status if no images
             document.getElementById('ai-status-title').textContent = '';
             document.getElementById('ai-status-desc').textContent = '';
-            // Reset AI tracking flags
             isAIGeneratedTitle = false;
             isAIGeneratedDescription = false;
             lastAITitle = '';
@@ -397,7 +544,6 @@
             return;
         }
         
-        // Show loading indicator
         const titleField = document.querySelector('#id_title');
         const descField = document.querySelector('#id_description');
         const categoryField = document.querySelector('#id_category');
@@ -407,15 +553,10 @@
         const currentTitle = titleField.value;
         const currentDesc = descField.value;
         
-        // Determine if we should update fields:
-        // 1. Field is empty (always update)
-        // 2. Field was previously AI-generated and matches last AI value (regenerate)
         const shouldUpdateTitle = !currentTitle || (isAIGeneratedTitle && currentTitle === lastAITitle);
         const shouldUpdateDescription = !currentDesc || (isAIGeneratedDescription && currentDesc === lastAIDescription);
         
-        // If user manually edited fields (they don't match AI values), don't overwrite
         if (!shouldUpdateTitle && !shouldUpdateDescription && currentTitle && currentDesc) {
-            // Fields were manually edited, don't regenerate
             titleStatus.textContent = '';
             descStatus.textContent = '';
             return;
@@ -425,8 +566,13 @@
         descField.disabled = true;
         if (categoryField) categoryField.disabled = true;
         titleStatus.textContent = 'Analyzing image...';
+        titleStatus.className = 'text-xs text-cyan-600 mt-1';
         descStatus.textContent = 'Analyzing image...';
-        if (categoryStatus) categoryStatus.textContent = 'Analyzing image...';
+        descStatus.className = 'text-xs text-cyan-600 mt-1';
+        if (categoryStatus) {
+            categoryStatus.textContent = 'Analyzing image...';
+            categoryStatus.className = 'text-xs text-cyan-600 mt-1';
+        }
         
         fetch('{% url "inventory:analyze_images_ajax" %}', {
             method: 'POST',
@@ -444,37 +590,32 @@
         .then(data => {
             console.log('AI response:', data);
             
-            // Update title if field is empty or was AI-generated
             if (data.title && shouldUpdateTitle) {
                 titleField.value = data.title;
                 lastAITitle = data.title;
                 isAIGeneratedTitle = true;
                 titleStatus.textContent = '✓ AI-generated from image';
-                titleStatus.className = 'text-success d-block';
+                titleStatus.className = 'text-xs text-green-600 mt-1';
             } else if (data.title && !shouldUpdateTitle) {
-                // AI suggestion available but field was manually edited
                 titleStatus.textContent = 'AI suggestion available (field manually edited)';
-                titleStatus.className = 'text-muted d-block';
+                titleStatus.className = 'text-xs text-slate-500 mt-1';
             } else {
                 titleStatus.textContent = '';
             }
             
-            // Update description if field is empty or was AI-generated
             if (data.description && shouldUpdateDescription) {
                 descField.value = data.description;
                 lastAIDescription = data.description;
                 isAIGeneratedDescription = true;
                 descStatus.textContent = '✓ AI-generated from image';
-                descStatus.className = 'text-success d-block';
+                descStatus.className = 'text-xs text-green-600 mt-1';
             } else if (data.description && !shouldUpdateDescription) {
-                // AI suggestion available but field was manually edited
                 descStatus.textContent = 'AI suggestion available (field manually edited)';
-                descStatus.className = 'text-muted d-block';
+                descStatus.className = 'text-xs text-slate-500 mt-1';
             } else {
                 descStatus.textContent = '';
             }
             
-            // Update category if provided
             if (data.category && categoryField) {
                 const value = data.category;
                 const optionValues = Array.from(categoryField.options).map(o => o.value);
@@ -482,11 +623,11 @@
                     categoryField.value = value;
                     if (categoryStatus) {
                         categoryStatus.textContent = '✓ AI-selected category';
-                        categoryStatus.className = 'text-success d-block';
+                        categoryStatus.className = 'text-xs text-green-600 mt-1';
                     }
                 } else if (categoryStatus) {
                     categoryStatus.textContent = 'AI suggested category, but it did not match available options';
-                    categoryStatus.className = 'text-warning d-block';
+                    categoryStatus.className = 'text-xs text-yellow-600 mt-1';
                 }
             } else if (categoryStatus) {
                 categoryStatus.textContent = '';
@@ -494,24 +635,24 @@
 
             if (!data.title && !data.description && !data.category) {
                 titleStatus.textContent = 'No AI suggestions available';
-                titleStatus.className = 'text-warning d-block';
+                titleStatus.className = 'text-xs text-yellow-600 mt-1';
                 descStatus.textContent = 'No AI suggestions available';
-                descStatus.className = 'text-warning d-block';
+                descStatus.className = 'text-xs text-yellow-600 mt-1';
                 if (categoryStatus) {
                     categoryStatus.textContent = 'No AI suggestions available';
-                    categoryStatus.className = 'text-warning d-block';
+                    categoryStatus.className = 'text-xs text-yellow-600 mt-1';
                 }
             }
         })
         .catch(error => {
             console.error('Error analyzing images:', error);
             titleStatus.textContent = 'Error: Could not analyze image. Check console for details.';
-            titleStatus.className = 'text-danger d-block';
+            titleStatus.className = 'text-xs text-red-600 mt-1';
             descStatus.textContent = 'Error: Could not analyze image. Check console for details.';
-            descStatus.className = 'text-danger d-block';
+            descStatus.className = 'text-xs text-red-600 mt-1';
             if (categoryStatus) {
                 categoryStatus.textContent = 'Error: Could not analyze category.';
-                categoryStatus.className = 'text-danger d-block';
+                categoryStatus.className = 'text-xs text-red-600 mt-1';
             }
         })
         .finally(() => {
@@ -521,13 +662,11 @@
         });
     }
     
-    // Initialize
     document.getElementById('add-image-btn').addEventListener('click', addImageField);
     if (imageFieldCount < maxImages) {
-        document.getElementById('add-image-btn').style.display = 'inline-block';
+        document.getElementById('add-image-btn').classList.remove('hidden');
     }
     
-    // Wait for DOM to be fully ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initializeHandlers);
     } else {
@@ -536,7 +675,6 @@
     
     function initializeHandlers() {
         console.log('Initializing image handlers...');
-        // Attach handlers to initial image field(s) - find all file inputs in image-field-wrapper
         const wrappers = document.querySelectorAll('.image-field-wrapper');
         console.log('Found', wrappers.length, 'image field wrappers');
         
@@ -545,7 +683,6 @@
             if (input) {
                 console.log('Attaching handler to input', index, input.id);
                 input.classList.add('image-upload-input');
-                // Add HEIC support to accept attribute if not already present
                 if (input.accept && !input.accept.includes('.heic')) {
                     input.accept = input.accept + ',.heic,.heif';
                 } else if (!input.accept) {
@@ -559,7 +696,6 @@
             }
         });
         
-        // Today button functionality
         const todayBtn = document.getElementById('today-btn');
         const dateInput = document.querySelector('#id_date_found');
         
@@ -571,23 +707,20 @@
                 const day = String(today.getDate()).padStart(2, '0');
                 dateInput.value = `${year}-${month}-${day}`;
                 
-                // Visual feedback
-                todayBtn.classList.add('btn-success');
-                todayBtn.classList.remove('btn-outline-secondary');
+                todayBtn.classList.add('bg-green-500');
+                todayBtn.classList.remove('bg-slate-600');
                 setTimeout(function() {
-                    todayBtn.classList.remove('btn-success');
-                    todayBtn.classList.add('btn-outline-secondary');
+                    todayBtn.classList.remove('bg-green-500');
+                    todayBtn.classList.add('bg-slate-600');
                 }, 500);
             });
         }
         
-        // Track manual edits to detect when user changes AI-generated values
         const titleField = document.querySelector('#id_title');
         const descField = document.querySelector('#id_description');
         
         if (titleField) {
             titleField.addEventListener('input', function() {
-                // If user manually edits, mark as not AI-generated
                 if (this.value !== lastAITitle) {
                     isAIGeneratedTitle = false;
                 }
@@ -596,7 +729,6 @@
         
         if (descField) {
             descField.addEventListener('input', function() {
-                // If user manually edits, mark as not AI-generated
                 if (this.value !== lastAIDescription) {
                     isAIGeneratedDescription = false;
                 }
@@ -605,4 +737,5 @@
     }
 })();
 </script>
-{% endblock %}
+</body>
+</html>

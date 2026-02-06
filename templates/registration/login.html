@@ -1,17 +1,175 @@
-{% extends "base.html" %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Staff Login - Trace Lost & Found</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-[#F8FAFC] text-slate-900">
+<!-- SIDEBAR: The 7 Sections -->
+<div class="flex min-h-screen flex-nowrap">
+  <aside class="m-4 flex hidden w-80 flex-col rounded-[2.5rem] bg-[#0F172A] shadow-2xl xl:flex">
+    <div class="p-10 pt-12">
+      <!-- LOGO -->
+      <div class="mb-10 flex items-center gap-4 px-2 select-none">
+        <!-- Icon -->
+        <div class="relative h-14 w-14">
+          <!-- Gradient Pin -->
+          <div class="absolute inset-0 rounded-full bg-gradient-to-br from-teal-400 via-cyan-400 to-purple-500 shadow-xl"></div>
+          <!-- Magnifier Handle -->
+          <div class="absolute -bottom-1 -left-1 h-8 w-4 rotate-45 rounded-full bg-gradient-to-br from-purple-400 to-purple-600"></div>
+          <!-- Robot Face -->
+          <div class="absolute inset-2 flex items-center justify-center rounded-full bg-[#0F172A]">
+            <svg viewBox="0 0 24 24" class="h-7 w-7 text-cyan-400" fill="currentColor">
+              <rect x="4" y="6" width="16" height="12" rx="4" />
+              <circle cx="9" cy="12" r="1.3" />
+              <circle cx="15" cy="12" r="1.3" />
+              <rect x="11" y="2" width="2" height="3" rx="1" />
+            </svg>
+          </div>
+        </div>
+        <!-- Text -->
+        <div class="leading-tight">
+          <h1 class="bg-gradient-to-r from-teal-300 to-purple-400 bg-clip-text text-3xl font-black tracking-tight text-transparent">Trace</h1>
+          <p class="text-xs font-bold tracking-widest text-slate-400 uppercase">Lost & Found • AI Powered</p>
+        </div>
+      </div>
 
-{% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6 col-lg-4">
-        <h1 class="mb-4 text-center">Staff Login</h1>
-        <form method="post" class="card p-4">
-            {% csrf_token %}
-            {{ form.as_p }}
-            <button type="submit" class="btn btn-primary w-100">Login</button>
-        </form>
+      <nav class="space-y-1">
+        <!-- All Items -->
+        <a href="{% url 'inventory:item_list' %}" class="flex items-center gap-4 rounded-2xl text-slate-400 hover:bg-white/5 hover:text-white px-4 py-3 transition-all">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+          <span class="font-bold">All Items</span>
+        </a>
+        <!-- Electronics -->
+        <a href="{% url 'inventory:item_list' %}?category=ELECTRONICS" class="flex items-center gap-4 rounded-2xl text-slate-400 hover:bg-white/5 hover:text-white px-4 py-3 transition-all">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
+          <span class="font-medium">Electronics</span>
+        </a>
+        <!-- Bags & Carry -->
+        <a href="{% url 'inventory:item_list' %}?category=BAGS_AND_CARRY" class="flex items-center gap-4 rounded-2xl text-slate-400 hover:bg-white/5 hover:text-white px-4 py-3 transition-all">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+          <span class="font-medium">Bags & Carry</span>
+        </a>
+        <!-- Sports & Clothing -->
+        <a href="{% url 'inventory:item_list' %}?category=SPORTS_AND_CLOTHING" class="flex items-center gap-4 rounded-2xl text-slate-400 hover:bg-white/5 hover:text-white px-4 py-3 transition-all">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
+          <span class="font-medium">Sports & Clothing</span>
+        </a>
+        <!-- Bottles & Containers -->
+        <a href="{% url 'inventory:item_list' %}?category=BOTTLES_AND_CONTAINERS" class="flex items-center gap-4 rounded-2xl text-slate-400 hover:bg-white/5 hover:text-white px-4 py-3 transition-all">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+          <span class="font-medium">Bottles & Containers</span>
+        </a>
+        <!-- Documents & IDs -->
+        <a href="{% url 'inventory:item_list' %}?category=DOCUMENTS_AND_IDS" class="flex items-center gap-4 rounded-2xl text-slate-400 hover:bg-white/5 hover:text-white px-4 py-3 transition-all">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          <span class="font-medium">Documents & IDs</span>
+        </a>
+        <!-- Notebooks & Books -->
+        <a href="{% url 'inventory:item_list' %}?category=NOTEBOOKS_AND_BOOKS" class="flex items-center gap-4 rounded-2xl text-slate-400 hover:bg-white/5 hover:text-white px-4 py-3 transition-all">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+          <span class="font-medium">Notebooks & Books</span>
+        </a>
+        <!-- Other / Misc -->
+        <a href="{% url 'inventory:item_list' %}?category=OTHER_MISC" class="flex items-center gap-4 rounded-2xl text-slate-400 hover:bg-white/5 hover:text-white px-4 py-3 transition-all">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"></path></svg>
+          <span class="font-medium">Other / Misc</span>
+        </a>
+      </nav>
     </div>
+  </aside>
+  
+  <!-- MAIN AREA -->
+  <main class="flex-1 overflow-y-auto p-8 flex items-center justify-center">
+    <div class="w-full max-w-md">
+      <!-- Back Button -->
+      <div class="mb-8">
+        <a href="{% url 'inventory:item_list' %}" class="inline-flex items-center gap-2 text-slate-600 hover:text-cyan-600 transition-colors font-medium">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+          Back to Browse Items
+        </a>
+      </div>
+
+      <!-- Login Card -->
+      <div class="rounded-[2.5rem] border border-slate-100 bg-white shadow-lg p-8">
+        <div class="mb-8 text-center">
+          <h1 class="text-4xl font-black tracking-tight text-[#0F172A] mb-2 uppercase">Staff Login</h1>
+          <p class="text-slate-500 font-medium">Access the staff portal to upload and manage items</p>
+        </div>
+
+        {% if form.errors %}
+        <div class="mb-6 rounded-2xl bg-red-50 border-2 border-red-200 p-4">
+          <div class="flex items-start gap-3">
+            <svg class="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <div>
+              <h3 class="font-bold text-red-900 mb-1">Login Failed</h3>
+              <p class="text-red-800 text-sm">
+                {% if form.non_field_errors %}
+                  {{ form.non_field_errors|join:", " }}
+                {% else %}
+                  Please check your credentials and try again.
+                {% endif %}
+              </p>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <form method="post" class="space-y-6">
+          {% csrf_token %}
+          
+          <div>
+            <label for="{{ form.username.id_for_label }}" class="block text-sm font-bold text-slate-700 mb-2">
+              Username
+            </label>
+            <input 
+              type="text" 
+              name="{{ form.username.name }}" 
+              id="{{ form.username.id_for_label }}"
+              required
+              autofocus
+              class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base shadow-sm transition-all focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
+              placeholder="Enter your username"
+            />
+            {% if form.username.errors %}
+              <p class="mt-1 text-sm text-red-600">{{ form.username.errors|join:", " }}</p>
+            {% endif %}
+          </div>
+
+          <div>
+            <label for="{{ form.password.id_for_label }}" class="block text-sm font-bold text-slate-700 mb-2">
+              Password
+            </label>
+            <input 
+              type="password" 
+              name="{{ form.password.name }}" 
+              id="{{ form.password.id_for_label }}"
+              required
+              class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base shadow-sm transition-all focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
+              placeholder="Enter your password"
+            />
+            {% if form.password.errors %}
+              <p class="mt-1 text-sm text-red-600">{{ form.password.errors|join:", " }}</p>
+            {% endif %}
+          </div>
+
+          <button 
+            type="submit" 
+            class="w-full rounded-2xl bg-purple-600 py-5 text-center text-sm font-black tracking-widest text-white uppercase shadow-lg shadow-purple-500/30 transition-all hover:bg-purple-700 active:scale-95"
+          >
+            Login
+          </button>
+        </form>
+      </div>
+    </div>
+  </main>
 </div>
-{% endblock %}
-
-
-
+</body>
+</html>
