@@ -309,7 +309,7 @@ class AdminDashboardView(LoginRequiredMixin, StaffRequiredMixin, View):
         return render(request, self.template_name, context)
 
     def post(self, request):
-        """Handle message dismissal."""
+        """Handle message dismissal and item deletion."""
         import json
         try:
             data = json.loads(request.body)
@@ -319,6 +319,16 @@ class AdminDashboardView(LoginRequiredMixin, StaffRequiredMixin, View):
                 claim_messages = [msg for msg in claim_messages if msg['id'] != message_id]
                 request.session['claim_messages'] = claim_messages
                 return JsonResponse({'success': True})
+            elif data.get('action') == 'delete_item':
+                item_id = data.get('item_id')
+                try:
+                    item = Item.objects.get(pk=item_id)
+                    item_title = item.title
+                    item.delete()
+                    messages.success(request, f'Item "{item_title}" has been successfully deleted.')
+                    return JsonResponse({'success': True, 'message': f'Item "{item_title}" deleted successfully'})
+                except Item.DoesNotExist:
+                    return JsonResponse({'success': False, 'error': 'Item not found'}, status=404)
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)}, status=400)
         

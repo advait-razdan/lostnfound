@@ -41,6 +41,30 @@
             max-height: 90%;
             object-fit: contain;
         }
+        /* Delete confirmation modal */
+        .delete-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+        }
+        .delete-modal.active {
+            display: flex;
+        }
+        .delete-modal-content {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            max-width: 90%;
+            width: 400px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
     </style>
 </head>
 <body class="bg-[#F8FAFC] text-slate-900">
@@ -159,6 +183,7 @@
               <th class="px-4 py-3 text-left text-xs sm:text-sm font-black text-slate-700 uppercase tracking-wider">Preview</th>
               <th class="px-4 py-3 text-left text-xs sm:text-sm font-black text-slate-700 uppercase tracking-wider">Status</th>
               <th class="px-4 py-3 text-left text-xs sm:text-sm font-black text-slate-700 uppercase tracking-wider">Claimed By</th>
+              <th class="px-4 py-3 text-left text-xs sm:text-sm font-black text-slate-700 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-200">
@@ -193,10 +218,19 @@
                   <span class="text-slate-400">-</span>
                 {% endif %}
               </td>
+              <td class="px-4 py-3">
+                <button 
+                  onclick="confirmDelete({{ item.pk }}, '{{ item.title|escapejs }}')" 
+                  class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white shadow-lg transition hover:bg-red-700 active:scale-95 touch-manipulation"
+                  title="Delete item"
+                >
+                  Delete
+                </button>
+              </td>
             </tr>
             {% empty %}
             <tr>
-              <td colspan="6" class="px-4 py-8 text-center text-slate-500">No items found.</td>
+              <td colspan="7" class="px-4 py-8 text-center text-slate-500">No items found.</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -225,6 +259,24 @@
 <div id="imageModal" class="image-modal" onclick="closeImageModal()">
   <img id="modalImage" class="image-modal-content" src="" alt="">
   <button onclick="closeImageModal()" class="absolute top-4 right-4 text-white text-4xl font-bold hover:text-gray-300">×</button>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="delete-modal" onclick="if(event.target === this) closeDeleteModal()">
+  <div class="delete-modal-content" onclick="event.stopPropagation()">
+    <h3 class="text-xl font-black text-slate-900 mb-3">Confirm Deletion</h3>
+    <p class="text-slate-700 mb-4">
+      Are you sure you want to delete <strong id="deleteItemTitle"></strong>? This action cannot be undone.
+    </p>
+    <div class="flex gap-3 justify-end">
+      <button onclick="closeDeleteModal()" class="rounded-xl bg-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-400 transition">
+        Cancel
+      </button>
+      <button id="confirmDeleteBtn" onclick="performDelete()" class="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700 transition">
+        Delete
+      </button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -281,6 +333,59 @@ function getCookie(name) {
     return cookieValue;
 }
 
+// Delete confirmation and execution
+let itemToDelete = null;
+
+function confirmDelete(itemId, itemTitle) {
+    itemToDelete = itemId;
+    document.getElementById('deleteItemTitle').textContent = itemTitle;
+    document.getElementById('deleteModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteModal').classList.remove('active');
+    document.body.style.overflow = '';
+    itemToDelete = null;
+}
+
+function performDelete() {
+    if (!itemToDelete) return;
+    
+    const btn = document.getElementById('confirmDeleteBtn');
+    btn.disabled = true;
+    btn.textContent = 'Deleting...';
+    
+    fetch('{% url "inventory:admin_dashboard" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            'action': 'delete_item',
+            'item_id': itemToDelete
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Reload the page to show updated list
+            window.location.reload();
+        } else {
+            alert('Error deleting item: ' + (data.error || 'Unknown error'));
+            btn.disabled = false;
+            btn.textContent = 'Delete';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error deleting item. Please try again.');
+        btn.disabled = false;
+        btn.textContent = 'Delete';
+    });
+}
+
 // Dismiss message functionality
 function dismissMessage(messageId) {
     const messageElement = document.getElementById('message-' + messageId);
@@ -324,10 +429,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Close image modal on Escape key
+    // Close modals on Escape key
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             closeImageModal();
+            closeDeleteModal();
         }
     });
 });
