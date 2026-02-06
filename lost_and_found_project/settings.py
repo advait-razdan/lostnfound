@@ -12,7 +12,29 @@ SECRET_KEY = os.environ.get(
 
 DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
 
-ALLOWED_HOSTS: list[str] = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+# ALLOWED_HOSTS configuration
+# Default hosts for local development
+allowed_hosts_list = ["localhost", "127.0.0.1"]
+
+# Add Railway domain if in production (when DATABASE_URL is set, we're likely on Railway)
+if os.environ.get("DATABASE_URL"):
+    # Railway uses *.up.railway.app domains
+    # Add common Railway domain patterns
+    allowed_hosts_list.append("lostnfound-production.up.railway.app")
+    # Also allow any Railway domain via environment variable
+    railway_domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN")
+    if railway_domain and railway_domain not in allowed_hosts_list:
+        allowed_hosts_list.append(railway_domain)
+
+# Allow additional hosts via DJANGO_ALLOWED_HOSTS environment variable
+env_hosts = os.environ.get("DJANGO_ALLOWED_HOSTS", "")
+if env_hosts:
+    for host in env_hosts.split(","):
+        host = host.strip()
+        if host and host not in allowed_hosts_list:
+            allowed_hosts_list.append(host)
+
+ALLOWED_HOSTS: list[str] = allowed_hosts_list
 
 INSTALLED_APPS = [
     "django.contrib.admin",
