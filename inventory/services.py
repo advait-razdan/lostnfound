@@ -48,9 +48,30 @@ def analyze_item_images(files: Iterable) -> Mapping[str, str]:
         "You are helping catalog lost-and-found items for a reception desk. "
         "Given an image of an item, respond with JSON only, with this exact shape:\n"
         '{ "title": "short, specific title", '
-        '"description": "detailed description with brand, color, size, model, visible markings", '
-        '"category": "one of: Electronics, Bags and Carry, Clothing and wearables, '
-        'bottles and containers, Documents and Id\\\"s, Notebooks/books, Other/Misc" }.\n'
+        '"description": "detailed description (format varies by category - see rules below)", '
+        '"category": "one of: Electronics, Bags and Carry, Sports and clothing, '
+        'Bottles and containers, Documents and Id\\"s, Notebooks/books, Other/Misc" }.\n\n'
+        "DESCRIPTION FORMATTING RULES BY CATEGORY:\n\n"
+        "1. NOTEBOOKS/BOOKS: "
+        "If it's a TISB notebook (identified by 'the international school bangalore' on cover), "
+        "description should ONLY include: color of the book, name written on it, class and section, and subject name. "
+        "No other details. "
+        "For other books/notebooks: emphasize any labels first, then describe patterns and design.\n\n"
+        "2. ELECTRONICS: "
+        "Identify the device type, then brand name. If brand is not visible, describe key features. "
+        "Title should be: [Brand] [Device Type] [Color] [Model if visible]. "
+        "Description should emphasize brand name and model if found, then describe design, patterns, and physical features.\n\n"
+        "3. BAGS AND CARRY: "
+        "Title should be: [Color] [Brand if visible] [Type of bag]. "
+        "Description should mention features like keychains, tears, zippers, pockets, and other distinguishing characteristics.\n\n"
+        "4. BOTTLES AND CONTAINERS: "
+        "Title should be: [Brand if visible] [Bottle or Box] [Color]. "
+        "Description should focus on physical features like dents, scratches, stickers, and other visible characteristics.\n\n"
+        "5. OTHER/MISC: "
+        "Describe as usual with relevant details.\n\n"
+        "6. ALL OTHER CATEGORIES: "
+        "Describe as usual but avoid unnecessary trivial details (e.g., don't mention specific button colors unless relevant). "
+        "Focus on useful identifying information.\n\n"
         "Do not include any explanation or text outside the JSON. Return only valid JSON."
     )
 
@@ -118,8 +139,8 @@ def analyze_item_images(files: Iterable) -> Mapping[str, str]:
             return "ELECTRONICS"
         if "bag" in v or "backpack" in v or "carry" in v or "luggage" in v:
             return "BAGS_AND_CARRY"
-        if "cloth" in v or "shirt" in v or "pants" in v or "jacket" in v or "shoe" in v or "wearable" in v:
-            return "CLOTHING_AND_WEARABLES"
+        if "cloth" in v or "shirt" in v or "pants" in v or "jacket" in v or "shoe" in v or "wearable" in v or "sport" in v:
+            return "SPORTS_AND_CLOTHING"
         if "bottle" in v or "flask" in v or "container" in v or "tupperware" in v:
             return "BOTTLES_AND_CONTAINERS"
         if "document" in v or "id" in v or "passport" in v or "license" in v or "card" in v:

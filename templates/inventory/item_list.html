@@ -58,9 +58,9 @@
           <span class="font-medium">Bags & Carry</span>
         </a>
         <!-- Clothing and Wearables -->
-        <a href="{% url 'inventory:item_list' %}?category=CLOTHING_AND_WEARABLES{% if search_query %}&q={{ search_query|urlencode }}{% endif %}" class="flex items-center gap-4 rounded-2xl {% if current_category == 'CLOTHING_AND_WEARABLES' %}bg-cyan-500 text-white shadow-lg shadow-cyan-500/20{% else %}text-slate-400 hover:bg-white/5 hover:text-white{% endif %} px-4 py-3 transition-all">
+        <a href="{% url 'inventory:item_list' %}?category=SPORTS_AND_CLOTHING{% if search_query %}&q={{ search_query|urlencode }}{% endif %}" class="flex items-center gap-4 rounded-2xl {% if current_category == 'SPORTS_AND_CLOTHING' %}bg-cyan-500 text-white shadow-lg shadow-cyan-500/20{% else %}text-slate-400 hover:bg-white/5 hover:text-white{% endif %} px-4 py-3 transition-all">
           <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
-          <span class="font-medium">Clothing & Wearables</span>
+          <span class="font-medium">Sports & Clothing</span>
         </a>
         <!-- Bottles & Containers -->
         <a href="{% url 'inventory:item_list' %}?category=BOTTLES_AND_CONTAINERS{% if search_query %}&q={{ search_query|urlencode }}{% endif %}" class="flex items-center gap-4 rounded-2xl {% if current_category == 'BOTTLES_AND_CONTAINERS' %}bg-cyan-500 text-white shadow-lg shadow-cyan-500/20{% else %}text-slate-400 hover:bg-white/5 hover:text-white{% endif %} px-4 py-3 transition-all">
@@ -154,7 +154,7 @@
               <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
               <!-- Category Badge -->
               <div class="absolute top-5 left-5">
-                <span class="rounded-xl {% if item.category == 'ELECTRONICS' %}bg-[#8B5CF6]{% elif item.category == 'BAGS_AND_CARRY' %}bg-blue-600{% elif item.category == 'CLOTHING_AND_WEARABLES' %}bg-pink-600{% elif item.category == 'BOTTLES_AND_CONTAINERS' %}bg-teal-600{% elif item.category == 'DOCUMENTS_AND_IDS' %}bg-yellow-600{% elif item.category == 'NOTEBOOKS_AND_BOOKS' %}bg-indigo-600{% else %}bg-slate-700{% endif %} px-4 py-2 text-[10px] font-black tracking-widest text-white uppercase shadow-lg">
+                <span class="rounded-xl {% if item.category == 'ELECTRONICS' %}bg-[#8B5CF6]{% elif item.category == 'BAGS_AND_CARRY' %}bg-blue-600{% elif item.category == 'SPORTS_AND_CLOTHING' %}bg-pink-600{% elif item.category == 'BOTTLES_AND_CONTAINERS' %}bg-teal-600{% elif item.category == 'DOCUMENTS_AND_IDS' %}bg-yellow-600{% elif item.category == 'NOTEBOOKS_AND_BOOKS' %}bg-indigo-600{% else %}bg-slate-700{% endif %} px-4 py-2 text-[10px] font-black tracking-widest text-white uppercase shadow-lg">
                   {{ item.get_category_display|lower }}
                 </span>
               </div>

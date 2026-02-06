@@ -10,7 +10,7 @@ class Item(models.Model):
     class Category(models.TextChoices):
         ELECTRONICS = "ELECTRONICS", "Electronics"
         BAGS_AND_CARRY = "BAGS_AND_CARRY", "Bags and Carry"
-        CLOTHING_AND_WEARABLES = "CLOTHING_AND_WEARABLES", "Clothing and wearables"
+        SPORTS_AND_CLOTHING = "SPORTS_AND_CLOTHING", "Sports and clothing"
         BOTTLES_AND_CONTAINERS = "BOTTLES_AND_CONTAINERS", "Bottles and containers"
         DOCUMENTS_AND_IDS = "DOCUMENTS_AND_IDS", "Documents and Id's"
         NOTEBOOKS_AND_BOOKS = "NOTEBOOKS_AND_BOOKS", "Notebooks/books"
