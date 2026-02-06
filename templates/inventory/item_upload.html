@@ -43,12 +43,19 @@
 
     <h5 class="mb-3">Images <small class="text-muted">(Optional)</small></h5>
     <div id="image-fields-container">
+        <style>
+        .image-upload-input {
+            display: none;
+        }
+        </style>
         {{ formset.management_form }}
         {% for form in formset %}
             <div class="mb-3 image-field-wrapper" data-field-index="{{ forloop.counter0 }}">
                 <label for="{{ form.image.id_for_label }}">Image {{ forloop.counter }}</label>
                 <div class="d-flex align-items-center gap-2">
-                    {{ form.image }}
+                    <button type="button" class="btn btn-outline-primary upload-choice-btn"> Upload </button>
+                    <button type="button" class="btn btn-outline-success camera-choice-btn" aria-label="Capture image using camera"> Camera </button>
+                    {{ form.image|add_class:"image-upload-input" }}
                     <button type="button" class="btn btn-sm btn-danger remove-image-btn" style="display: none;">Remove</button>
                 </div>
                 {% if form.image.errors %}
@@ -116,7 +123,7 @@
 <script>
 (function() {
     const maxImages = 3;
-    let imageFieldCount = 1;
+    let imageFieldCount = document.querySelectorAll('.image-field-wrapper').length; //not hardcoded to 1 -> check
     const formsetPrefix = '{{ formset.prefix }}';
     const totalFormsInput = document.querySelector(`#id_${formsetPrefix}-TOTAL_FORMS`);
     
@@ -140,6 +147,8 @@
         newField.innerHTML = `
             <label>Image ${imageFieldCount}</label>
             <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-outline-primary upload-choice-btn"> Upload </button>
+                <button type="button" class="btn btn-outline-success camera-choice-btn"> Camera </button>
                 <input type="file" name="${formsetPrefix}-${imageFieldCount - 1}-image" 
                        id="id_${formsetPrefix}-${imageFieldCount - 1}-image" 
                        class="image-upload-input" accept="image/*,.heic,.heif">
@@ -154,10 +163,31 @@
         const input = newField.querySelector('.image-upload-input');
         attachImageHandlers(input);
         attachRemoveHandler(newField);
+        attachChoiceButtons(newField);
         
         if (imageFieldCount >= maxImages) {
             document.getElementById('add-image-btn').style.display = 'none';
         }
+    }
+    
+    function attachChoiceButtons(wrapper) {
+        const uploadBtn = wrapper.querySelector('.upload-choice-btn');
+        const cameraBtn = wrapper.querySelector('.camera-choice-btn');
+        const input = wrapper.querySelector('input[type="file"]');
+
+        if (!uploadBtn || !cameraBtn || !input) return;
+
+        // Upload triggers file picker
+        uploadBtn.addEventListener('click', () => {
+            input.removeAttribute("capture");
+            input.click();
+        });
+
+        // Camera triggers device camera
+        cameraBtn.addEventListener('click', () => {
+            input.setAttribute("capture", "environment");
+            input.click();
+        });
     }
     
     function attachRemoveHandler(wrapper) {
@@ -462,6 +492,7 @@
                 } else if (!input.accept) {
                     input.accept = 'image/*,.heic,.heif';
                 }
+                attachChoiceButtons(wrapper);
                 attachImageHandlers(input);
                 attachRemoveHandler(wrapper);
             } else {
