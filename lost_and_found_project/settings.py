@@ -277,8 +277,7 @@ LF_BROADCAST_RECIPIENTS_LIST = list(dict.fromkeys(
     addr.strip().lower() for addr in _broadcast_raw.split(",") if addr.strip()
 ))
 
-# Magic link configuration (§4.2)
-MAGIC_LINK_SECRET = os.environ.get("MAGIC_LINK_SECRET", "")
+# Public base URL used to build absolute links in outbound staff emails.
 MAGIC_LINK_BASE_URL = os.environ.get("MAGIC_LINK_BASE_URL", "")
 
 # Google Gemini API Key (currently in use for AI features)

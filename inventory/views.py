@@ -9,7 +9,6 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.mail import send_mail, EmailMessage, EmailMultiAlternatives
 from django.core.paginator import Paginator
-from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
 from django.db import transaction
 from django.db.models import Q, Count
 from django.http import JsonResponse, HttpResponseForbidden
@@ -29,7 +28,7 @@ from .forms import (
 )
 from .models import (
     Item, UserProfile, StudentLostItem, StudentLostItemImage, Claim,
-    ItemImage, BroadcastLog, MagicLinkRequest, UserRoleChangeLog,
+    ItemImage, BroadcastLog, UserRoleChangeLog,
 )
 from .services import analyze_item_images
 
@@ -346,7 +345,6 @@ class ClaimItemView(View):
                 item.save()
 
             # §3.1.5 Claim confirmation email
-            base_url = getattr(settings, "MAGIC_LINK_BASE_URL", "") or ""
             claimed_at_ist = claim.claimed_at.astimezone(
                 timezone.get_fixed_timezone(330)
             ).strftime("%-d %B %Y, %-I:%M %p IST")
@@ -367,8 +365,6 @@ class ClaimItemView(View):
                     "during school hours. Please bring a valid form of TISB identification. The item "
                     "will only be released to you in person — it will not be released to any other "
                     "student, sibling, parent, or staff member acting on your behalf.\n\n"
-                    f"You can view all your claims and lost-item reports at:\n"
-                    f"{base_url}/my-reports/\n\n"
                     "If you did not submit this claim, reply to this email immediately so that "
                     "staff can investigate.\n\n"
                     "— TRACE, TISB Lost & Found"
@@ -755,6 +751,16 @@ class ApproveItemView(LoginRequiredMixin, SuperUserRequiredMixin, View):
                 pk=item_id,
                 approval_status=StudentLostItem.ApprovalStatus.PENDING
             )
+            # Optional inline edit: staff may clean up the title/description
+            # (drawn from the raw email) before publishing. Only applied when
+            # the edit form submitted these fields; the quick Approve button does not.
+            if "title" in request.POST:
+                new_title = request.POST.get("title", "").strip()[:200]
+                if not new_title:
+                    messages.error(request, "Title cannot be empty.")
+                    return redirect("inventory:approval_queue")
+                item.title = new_title
+                item.description = request.POST.get("description", "").strip()[:5000]
             item.approval_status = StudentLostItem.ApprovalStatus.APPROVED
             item.approved_by = request.user
             item.approved_at = timezone.now()
@@ -762,7 +768,6 @@ class ApproveItemView(LoginRequiredMixin, SuperUserRequiredMixin, View):
             # §3.5.1 Approval email
             if item.email_from:
                 first_name = item.submitter_display_name.split()[0] if item.submitter_display_name else "there"
-                base_url = getattr(settings, "MAGIC_LINK_BASE_URL", "") or ""
                 send_system_email(
                     subject=f'Your lost item report has been approved — "{item.title}"',
                     message=(
@@ -773,7 +778,6 @@ class ApproveItemView(LoginRequiredMixin, SuperUserRequiredMixin, View):
                         "If this item is found, you will be contacted at this email address. "
                         "To take possession of the item you must come in person to the school reception "
                         "during school hours and present a valid form of TISB identification.\n\n"
-                        f"You can view your reports at: {base_url}/my-reports/\n\n"
                         "— TRACE, TISB Lost & Found"
                     ),
                     recipient_list=[item.email_from],
@@ -1105,134 +1109,6 @@ class HowToReportLostView(TemplateView):
         ctx = super().get_context_data(**kwargs)
         ctx["email_address"] = getattr(settings, "LF_EMAIL_ADDRESS", "")
         return ctx
-
-
-# ---------------------------------------------------------------------------
-# Magic Link "My Reports" Views (§4)
-# ---------------------------------------------------------------------------
-
-def _magic_link_signer():
-    secret = getattr(settings, "MAGIC_LINK_SECRET", "") or settings.SECRET_KEY
-    return TimestampSigner(key=secret, salt="magic-link")
-
-
-class MyReportsView(View):
-    """Shows sign-in form or dashboard depending on session (§4.4)."""
-
-    def get(self, request):
-        email = request.session.get("magic_link_email")
-        if email:
-            return self._render_dashboard(request, email)
-        return render(request, "inventory/my_reports_signin.html")
-
-    def _render_dashboard(self, request, email):
-        reports = StudentLostItem.objects.filter(
-            email_from__iexact=email
-        ).order_by("-submitted_at").prefetch_related("images", "broadcasts")
-        claims = Claim.objects.filter(
-            claimant_email__iexact=email
-        ).select_related("item").order_by("-claimed_at")
-        return render(request, "inventory/my_reports_dashboard.html", {
-            "email": email,
-            "reports": reports,
-            "claims": claims,
-        })
-
-
-class RequestMagicLinkView(View):
-    """Accept email, send magic link (§4.5.2)."""
-
-    def post(self, request):
-        email = (request.POST.get("email") or "").strip().lower()
-        if not email.endswith("@tisb.ac.in"):
-            return render(request, "inventory/my_reports_signin.html", {
-                "error": "Only @tisb.ac.in email addresses are accepted.",
-                "email_value": email,
-            })
-
-        # Rate limit: 3 per hour per email (§4.5.2)
-        cutoff = timezone.now() - timedelta(hours=1)
-        recent = MagicLinkRequest.objects.filter(
-            email=email, requested_at__gte=cutoff
-        ).count()
-        if recent >= 3:
-            return render(request, "inventory/my_reports_signin.html", {
-                "error": "You have requested too many sign-in links recently. Please wait an hour and try again.",
-                "email_value": email,
-            })
-
-        mlr = MagicLinkRequest.objects.create(
-            email=email,
-            ip_address=request.META.get("REMOTE_ADDR"),
-            user_agent=request.META.get("HTTP_USER_AGENT", "")[:500],
-        )
-
-        signer = _magic_link_signer()
-        token = signer.sign_object({"email": email, "req_id": mlr.pk})
-
-        base_url = _get_base_url(request)
-        sign_in_url = base_url + reverse("inventory:magic_link_signin", args=[token])
-
-        send_system_email(
-            subject="Your TRACE sign-in link",
-            message=(
-                "Hi,\n\n"
-                "You requested a sign-in link to view your TRACE Lost & Found reports.\n\n"
-                "Click the link below to sign in. The link is valid for 24 hours and can be used once.\n\n"
-                f"{sign_in_url}\n\n"
-                "If you did not request this link, ignore this email. No action is needed.\n\n"
-                "— TRACE, TISB Lost & Found"
-            ),
-            recipient_list=[email],
-        )
-        logger.info("Magic link requested for email, req_id=%d", mlr.pk)
-        return render(request, "inventory/my_reports_link_sent.html", {"email": email})
-
-
-class MagicLinkSignInView(View):
-    """Verify token, set session (§4.5.3)."""
-
-    def get(self, request, token):
-        signer = _magic_link_signer()
-        try:
-            payload = signer.unsign_object(token, max_age=86400)
-        except (BadSignature, SignatureExpired):
-            return render(request, "inventory/my_reports_link_invalid.html", {
-                "message": "This sign-in link is invalid or has expired. Please request a new one.",
-            })
-
-        email = payload.get("email", "")
-        req_id = payload.get("req_id")
-
-        try:
-            mlr = MagicLinkRequest.objects.get(pk=req_id)
-        except MagicLinkRequest.DoesNotExist:
-            return render(request, "inventory/my_reports_link_invalid.html", {
-                "message": "This sign-in link is invalid or has expired. Please request a new one.",
-            })
-
-        if mlr.consumed_at:
-            return render(request, "inventory/my_reports_link_invalid.html", {
-                "message": "This sign-in link has already been used. Please request a new one if you need to sign in again.",
-            })
-
-        mlr.consumed_at = timezone.now()
-        mlr.save(update_fields=["consumed_at"])
-
-        request.session["magic_link_email"] = email
-        request.session["magic_link_signed_in_at"] = timezone.now().isoformat()
-        request.session.set_expiry(86400)
-
-        return redirect("inventory:my_reports")
-
-
-class MyReportsSignOutView(View):
-    """Clear magic-link session (§4.5.5)."""
-
-    def post(self, request):
-        request.session.pop("magic_link_email", None)
-        request.session.pop("magic_link_signed_in_at", None)
-        return redirect("inventory:my_reports")
 
 
 # ---------------------------------------------------------------------------

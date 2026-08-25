@@ -8,7 +8,7 @@ from django.urls import reverse
 from PIL import Image
 from unittest.mock import patch
 
-from inventory.models import Item, ItemImage
+from inventory.models import Item, ItemImage, StudentLostItem
 
 
 def _create_test_image(name="test.png"):
@@ -99,6 +99,76 @@ class StaffUploadViewsTests(TestCase):
         self.assertEqual(item.created_by, self.staff)
         self.assertEqual(item.approval_status, "PENDING")
         self.assertEqual(ItemImage.objects.filter(item=item).count(), 1)
+
+
+class ApproveStudentItemInlineEditTests(TestCase):
+    """Super Users can clean up a student submission's title/description at approval time."""
+
+    def setUp(self):
+        self.client = Client()
+        User = get_user_model()
+        self.superuser = User.objects.create_user(
+            username="super", password="pw", is_staff=True, is_superuser=True
+        )
+        self.client.login(username="super", password="pw")
+        self.item = StudentLostItem.objects.create(
+            title="Re: fwd HELP???",
+            description="i lost my thing",
+            email_from="student@tisb.ac.in",
+            approval_status=StudentLostItem.ApprovalStatus.PENDING,
+        )
+
+    def _approve_url(self):
+        return reverse("inventory:approve_item", args=["student", self.item.pk])
+
+    @patch("inventory.views.send_system_email")
+    def test_quick_approve_without_edit_keeps_original(self, _mock_email):
+        response = self.client.post(self._approve_url())
+        self.assertEqual(response.status_code, 302)
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.approval_status, "APPROVED")
+        self.assertEqual(self.item.title, "Re: fwd HELP???")
+        self.assertEqual(self.item.description, "i lost my thing")
+
+    @patch("inventory.views.send_system_email")
+    def test_approve_with_edit_updates_fields(self, _mock_email):
+        response = self.client.post(self._approve_url(), {
+            "title": "Blue water bottle",
+            "description": "Lost near the library on Tuesday.",
+        })
+        self.assertEqual(response.status_code, 302)
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.approval_status, "APPROVED")
+        self.assertEqual(self.item.title, "Blue water bottle")
+        self.assertEqual(self.item.description, "Lost near the library on Tuesday.")
+
+    @patch("inventory.views.send_system_email")
+    def test_approve_with_empty_title_is_rejected(self, _mock_email):
+        response = self.client.post(self._approve_url(), {
+            "title": "   ",
+            "description": "whatever",
+        })
+        self.assertEqual(response.status_code, 302)
+        self.item.refresh_from_db()
+        # Still pending, unchanged — an empty title must not publish.
+        self.assertEqual(self.item.approval_status, "PENDING")
+        self.assertEqual(self.item.title, "Re: fwd HELP???")
+
+    @patch("inventory.views.send_system_email")
+    def test_edited_title_is_truncated_to_200(self, _mock_email):
+        long_title = "x" * 250
+        self.client.post(self._approve_url(), {"title": long_title, "description": "d"})
+        self.item.refresh_from_db()
+        self.assertEqual(len(self.item.title), 200)
+
+    def test_approval_queue_renders_editable_modal(self):
+        response = self.client.get(reverse("inventory:approval_queue"), {"view": "pending"})
+        self.assertEqual(response.status_code, 200)
+        body = response.content.decode()
+        # The editable modal wiring is present for student items.
+        self.assertIn("editTitleInput", body)
+        self.assertIn("Save &amp; Approve", body)
+        self.assertIn("var csrfToken", body)
 
 
 

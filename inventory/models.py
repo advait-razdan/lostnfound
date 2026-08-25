@@ -323,24 +323,6 @@ class BroadcastLog(models.Model):
         return f"Broadcast ({self.kind}) at {self.sent_at}"
 
 
-class MagicLinkRequest(models.Model):
-    """Rate limiting and audit log for magic-link sign-in requests."""
-    email = models.EmailField(db_index=True)
-    requested_at = models.DateTimeField(auto_now_add=True)
-    ip_address = models.GenericIPAddressField(null=True, blank=True)
-    user_agent = models.CharField(max_length=500, blank=True)
-    consumed_at = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        ordering = ["-requested_at"]
-        indexes = [
-            models.Index(fields=["email", "-requested_at"]),
-        ]
-
-    def __str__(self) -> str:
-        return f"Magic link for {self.email} at {self.requested_at}"
-
-
 class UserRoleChangeLog(models.Model):
     """Audit log of every role change in the user management UI."""
     ACTION_CHOICES = [

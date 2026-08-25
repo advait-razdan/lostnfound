@@ -177,12 +177,11 @@ class WordingAuditTest(TestCase):
                     continue
                 rel = str(html_file.relative_to(BASE_DIR))
                 text = html_file.read_text(encoding="utf-8", errors="replace")
-                # Footer may be in the template directly or via an included
-                # sidebar partial (_sidebar.html / _sidebar_public.html)
+                # Footer may be in the template directly or via the included
+                # sidebar partial (_sidebar.html)
                 has_footer = (
                     footer_text in text
                     or 'include "inventory/_sidebar.html"' in text
-                    or 'include "inventory/_sidebar_public.html"' in text
                 )
                 if not has_footer:
                     missing.append(rel)

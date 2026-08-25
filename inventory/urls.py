@@ -27,11 +27,6 @@ urlpatterns = [
     path("staff/broadcasts/", views.BroadcastHistoryView.as_view(), name="broadcast_history"),
     # How to report (§3.4)
     path("how-to-report-lost/", views.HowToReportLostView.as_view(), name="how_to_report_lost"),
-    # Magic Link My Reports (§4)
-    path("my-reports/", views.MyReportsView.as_view(), name="my_reports"),
-    path("my-reports/request-link/", views.RequestMagicLinkView.as_view(), name="request_magic_link"),
-    path("my-reports/sign-in/<str:token>/", views.MagicLinkSignInView.as_view(), name="magic_link_signin"),
-    path("my-reports/sign-out/", views.MyReportsSignOutView.as_view(), name="my_reports_signout"),
     # Staff User Management (§6)
     path("staff/users/", views.UserManagementListView.as_view(), name="user_management_list"),
     path("staff/users/new/", views.UserManagementCreateView.as_view(), name="user_management_create"),

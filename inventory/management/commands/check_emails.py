@@ -453,7 +453,6 @@ class Command(BaseCommand):
             timezone.get_fixed_timezone(330)  # IST = UTC+5:30
         ).strftime("%-d %B %Y, %-I:%M %p IST")
         image_count = item.images.count()
-        base_url = getattr(settings, "MAGIC_LINK_BASE_URL", "") or ""
 
         if oversized:
             subject = f'Action needed: your lost item report could not be fully processed'
@@ -488,8 +487,6 @@ class Command(BaseCommand):
                 "you will be notified by email at this address.\n"
                 "4. To collect any matched item, you must come in person to the school reception. "
                 "Items will not be released to anyone other than the rightful owner, in person.\n\n"
-                f"You can view all reports you have submitted, and any claims you have made, by visiting:\n"
-                f"{base_url}/my-reports/\n\n"
                 "This is an automated message — do not reply to this email. "
                 "If you need to follow up, contact your Head of Year or the school reception.\n\n"
                 "— TRACE, TISB Lost & Found"

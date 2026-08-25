@@ -7,7 +7,7 @@ from datetime import timedelta
 
 from .models import (
     Item, ItemImage, StudentLostItem, StudentLostItemImage, UserProfile, Claim,
-    MicrosoftOAuthToken, BroadcastLog, MagicLinkRequest, UserRoleChangeLog,
+    MicrosoftOAuthToken, BroadcastLog, UserRoleChangeLog,
 )
 from .views import is_super_user
 
@@ -211,14 +211,6 @@ class BroadcastLogAdmin(admin.ModelAdmin):
     list_display = ("kind", "sent_at", "sent_by", "succeeded", "subject")
     list_filter = ("kind", "succeeded", "sent_at")
     readonly_fields = ("kind", "student_lost_item", "found_item", "sent_by", "sent_at", "recipients", "subject", "body_preview", "succeeded", "error_message")
-
-
-@admin.register(MagicLinkRequest)
-class MagicLinkRequestAdmin(admin.ModelAdmin):
-    list_display = ("email", "requested_at", "consumed_at", "ip_address")
-    list_filter = ("requested_at",)
-    search_fields = ("email",)
-    readonly_fields = ("email", "requested_at", "ip_address", "user_agent", "consumed_at")
 
 
 @admin.register(UserRoleChangeLog)
