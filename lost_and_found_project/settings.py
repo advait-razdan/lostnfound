@@ -233,7 +233,22 @@ MS_OAUTH_TOKEN_ENCRYPTION_KEY = os.environ.get("MS_OAUTH_TOKEN_ENCRYPTION_KEY", 
 # Uses OAuth2 XOAUTH2 when MS_OAUTH_CLIENT_ID is set, falls back to basic auth otherwise.
 # Set EMAIL_BACKEND env var to override auto-detection.
 #
-if MS_OAUTH_CLIENT_ID:
+_email_backend_override = os.environ.get("EMAIL_BACKEND", "")
+if _email_backend_override:
+    # Explicit override — used for local testing with Django's filebased or
+    # console backend so no real SMTP/OAuth credentials are needed. The dummy
+    # EMAIL_HOST/EMAIL_HOST_USER defaults keep send_system_email() from silently
+    # skipping (it no-ops when those are empty).
+    EMAIL_BACKEND = _email_backend_override
+    EMAIL_HOST = os.environ.get("EMAIL_HOST", "localhost")
+    EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "25"))
+    EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", os.environ.get("LF_EMAIL_ADDRESS", ""))
+    EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+    EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "0") == "1"
+    EMAIL_USE_SSL = os.environ.get("EMAIL_USE_SSL", "0") == "1"
+    if os.environ.get("EMAIL_FILE_PATH"):
+        EMAIL_FILE_PATH = os.environ.get("EMAIL_FILE_PATH")
+elif MS_OAUTH_CLIENT_ID:
     EMAIL_BACKEND = "inventory.email_backends.MicrosoftOAuth2EmailBackend"
     EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp-mail.outlook.com")
     EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
